@@ -20,3 +20,20 @@ class TestFinData(TestCase):
         self.assertAlmostEqual(particular_quarter[1]/1e9, 78.4, 1, "Checking revenue is as reported by Apple")
         self.assertEqual(particular_quarter[2], datetime.datetime(2016, 9, 25), "Checking start date for quarter")
         self.assertEqual(particular_quarter[3], datetime.datetime(2016, 12, 31), "Checking end date for quarter")
+
+    def test_get_dates(self):
+        date_data = self.fin_data_test_subject.get_dates('MSFT', 2011, 1, 2017, 4)
+        self.assertEqual(date_data.shape, (29, 3), "28 quarters between 2011 and 2017 plus the column names")
+        # Relying on data from:
+        # https://www.microsoft.com/en-us/Investor/earnings/FY-2010-Q4/press-release-webcast
+        # https://www.microsoft.com/en-us/Investor/earnings/FY-2011-Q1/press-release-webcast
+        # https://www.microsoft.com/en-us/Investor/earnings/FY-2013-Q3/press-release-webcast
+        # https://www.microsoft.com/en-us/Investor/earnings/FY-2013-Q4/press-release-webcast
+        # https://www.microsoft.com/en-us/Investor/earnings/FY-2017-Q3/press-release-webcast
+        # https://www.microsoft.com/en-us/Investor/earnings/FY-2017-Q4/press-release-webcast
+        self.assertEqual(date_data[1][1], datetime.datetime(2010, 7, 1), "Checking the start of the array")
+        self.assertEqual(date_data[1][2], datetime.datetime(2010, 9, 30), "Checking the start of the array")
+        self.assertEqual(date_data[12][1], datetime.datetime(2013, 4, 1), "Checking the middle of the array")
+        self.assertEqual(date_data[12][2], datetime.datetime(2013, 6, 30), "Checking the middle of the array")
+        self.assertEqual(date_data[-1][1], datetime.datetime(2017, 4, 1), "Checking the end of the array")
+        self.assertEqual(date_data[-1][2], datetime.datetime(2017, 6, 30), "Checking the end of the array")

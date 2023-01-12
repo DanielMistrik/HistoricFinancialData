@@ -1,6 +1,7 @@
 import requests
 import json
 import utils as ut
+import numpy as np
 
 """
 main.py - The public facing script which includes the main public class (FinData) and all the public, and useful, methods
@@ -46,3 +47,9 @@ class FinData:
         """
         cik = self._ticker_cik_map[ticker]
         return ut.get_data(cik, self._revenue_jargon, 'Revenue', start_year, start_quarter, end_year, end_quarter)
+
+    def get_dates(self, ticker, start_year=0, start_quarter=0, end_year=3000, end_quarter=5):
+        cik = self._ticker_cik_map[ticker]
+        raw_data = ut.get_data(cik, self._revenue_jargon, None, start_year, start_quarter, end_year, end_quarter)
+        filtered_data = np.delete(raw_data, 1, 1)
+        return filtered_data
