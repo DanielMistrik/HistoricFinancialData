@@ -55,9 +55,9 @@ def get_url_data(url):
 "Fills missing quarter dates, should be applied to the result of fill_financial_data which doesn't add dates"
 def fill_dates(data):
     for i, quarter in enumerate(data):
-        if data[i][2] is None and i != 0 and i != (len(data) - 1):
-            data[i][2] = data[i - 1][3] + datetime.timedelta(days=1)
-            data[i][3] = data[i + 1][2] - datetime.timedelta(days=1)
+        if data[i][2] is None:
+            data[i][2] = data[i - 1][3] + datetime.timedelta(days=1) if i != 0 else data[i][2]
+            data[i][3] = data[i + 1][2] - datetime.timedelta(days=1) if i != (len(data) - 1) else data[i][3]
     return data
 
 
@@ -121,5 +121,4 @@ def get_data(cik, value_tags, data_name, min_year=0, min_quarter=0, max_year=300
     value_data = np.fromiter(
         (x for x in value_data if is_in_date_bound(x[0], min_year, min_quarter, max_year, max_quarter)), dtype=value_data.dtype)
     values = np.hstack([values, value_data])
-
     return values

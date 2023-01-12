@@ -36,6 +36,18 @@ class FinData:
         self._fill_cik_map()
 
     def get_revenue(self, ticker, start_year=0, start_quarter=0, end_year=3000, end_quarter=5):
+        """
+        get_revenue - Retrieves the revenue for the provided ticker in the optional date bounds. Works off of SEC 10-Q
+        and 10-K fillings so for some companies, notably banks, the function wont be able to return revenue
+        :param ticker: The stock market ticker identifying your company of interest as a string.
+        :param start_year: The companies financial year you want to start data collection from as an integer
+        :param start_quarter: The companies financial quarter you want to start data collection from as an integer
+        :param end_year: The companies financial year you want to end data collection with as an integer (inclusive)
+        :param end_quarter: The companies financial quarter you want to end data collection with as an integer (inclusive)
+        :return: A numpy array with the first row being column names and the remainder being revenue data by quarter.
+        """
         cik = self._ticker_cik_map[ticker]
         return ut.get_data(cik, self._revenue_jargon, 'Revenue', start_year, start_quarter, end_year, end_quarter)
 
+test = FinData()
+print(test.get_revenue('AAPL'))
