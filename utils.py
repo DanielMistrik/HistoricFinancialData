@@ -116,7 +116,7 @@ def get_data(cik, value_tags, data_name, min_year=0, min_quarter=0, max_year=300
     for i in range(len(value_tags)):
         try:
             url = _sec_url.format(cik, value_tags[i])
-            new_qtr_data, new_yr_data = get_spec_data_given_url(url, min_year, max_year)
+            new_qtr_data, new_yr_data = get_spec_data_given_url(url, min_year-1, max_year+1)
             if new_qtr_data is not None and len(new_qtr_data) > 0 and len(new_qtr_data.shape) > 1:
                 value_data = new_qtr_data if value_data is None else np.concatenate((value_data, new_qtr_data))
             yearly_data = yearly_data | new_yr_data
