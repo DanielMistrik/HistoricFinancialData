@@ -1,8 +1,6 @@
 import requests
 import json
-import numpy as np
 import utils as ut
-from exceptions import *
 
 """
 main.py - 
@@ -48,6 +46,3 @@ class FinData:
         """
         cik = self._ticker_cik_map[ticker]
         return ut.get_data(cik, self._revenue_jargon, 'Revenue', start_year, start_quarter, end_year, end_quarter)
-
-test = FinData()
-print(test.get_revenue('AAPL'))
