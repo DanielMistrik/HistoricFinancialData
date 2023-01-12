@@ -36,7 +36,7 @@ class FinData:
 
     def get_revenue(self, ticker, start_year=0, start_quarter=0, end_year=3000, end_quarter=5):
         """
-        get_revenue - Returns the revenue for the provided ticker in the optional date bounds. Works off of SEC 10-Q
+        get_revenue - Returns the revenue for the provided ticker in the optional date bounds. Works off of SEC 10-Q/A
         and 10-K fillings so for some companies, notably banks, the function wont be able to return revenue
         :param ticker: The stock market ticker identifying your company of interest as a string.
         :param start_year: The companies financial year you want to start data collection from as an integer
@@ -53,7 +53,7 @@ class FinData:
     def get_dates(self, ticker, start_year=0, start_quarter=0, end_year=3000, end_quarter=5):
         """
         get_dates - Returns the exact dates each financial quarter, as defined by the company, falls into. Works off
-        of SEC 10-Q and 10-K fillings so for some companies, notably banks, the function wont be able to return dates
+        of SEC 10-Q/A and 10-K fillings so for some companies, notably banks, the function wont be able to return dates
         :param ticker: The stock market ticker identifying your company of interest as a string.
         :param start_year: The companies financial year you want to start data collection from as an integer
         :param start_quarter: The companies financial quarter you want to start data collection from as an integer
