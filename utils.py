@@ -78,21 +78,45 @@ def is_in_date_bound(string_date, min_year, min_quarter, max_year, max_quarter):
             (given_yr < max_year or given_qtr <= max_quarter)
 
 
-"Retrieves the financial data values from the url response from the start of the min_year up to the max_year"
-def get_spec_data_given_url(url, min_year=0, max_year=3000):
-    raw_output = get_url_data(url)
-    # Filters for valid yearly and quarterly revenue
-    def yr_is_valid(item):
-        return item["form"] == "10-K" and "fy" in item and "fp" in item and min_year <= int(item["fy"]) <= max_year and\
+"Filter for valid yearly and quarterly revenue data"
+def yr_is_valid(item, min_year, max_year):
+    return item["form"] == "10-K" and "fy" in item and "fp" in item and min_year <= int(item["fy"]) <= max_year and\
         330 < (dt.fromisoformat(item["end"]) - dt.fromisoformat(item["start"])).days < 380
-    def qr_is_valid(item):
-        return item["form"] in "10-Q/A" and "fy" in item and "fp" in item and min_year <= int(item["fy"]) <= max_year \
-        and 60 < (dt.fromisoformat(item["end"]) - dt.fromisoformat(item["start"])).days < 100
 
+
+def qr_is_valid(item, min_year, max_year):
+    return "fp" in item and item["form"] in "10-Q/A" and min_year <= int(item["fy"]) <= max_year and "fy" in item\
+                    and 60 < (dt.fromisoformat(item["end"]) - dt.fromisoformat(item["start"])).days < 100
+
+
+"Return quarters marked by frame rather than year and quarter"
+def get_frame_quarter_data(raw_output, min_year, max_year, found_qrtrs):
+        frame_quarter_data = np.array([[item["frame"][2:], item["val"], dt.fromisoformat(item["start"]),
+                            dt.fromisoformat(item["end"])] for item in raw_output["units"]["USD"] if "frame" in item \
+                            and "Q" in item["frame"] and item["frame"][2:] not in found_qrtrs and "fy" in item \
+                            and min_year <= int(item["frame"][2:6]) <= max_year])
+        return frame_quarter_data
+
+
+"Return quarters marked by year and quarter explicitly"
+def get_explicit_quarter_data(raw_output, min_year, max_year):
+    return np.array([[str(item["fy"]) + item["fp"], item["val"], dt.fromisoformat(item["start"]),
+                      dt.fromisoformat(item["end"])] for item in raw_output["units"]["USD"] if
+                     qr_is_valid(item, min_year, max_year)])
+
+
+"Retrieves the financial data values from the url response from the start of the min_year up to the max_year"
+def get_spec_data_given_url(url, min_year=0, max_year=3000, found_qrtrs=None):
+    raw_output = get_url_data(url)
     # Create tables of quarterly and yearly revenues by parsng the raw output
-    yearly_revenue = {str(item["fy"]): item["val"] for item in raw_output["units"]["USD"] if yr_is_valid(item)}
-    quarterly_data = np.array([[str(item["fy"]) + item["fp"], item["val"], dt.fromisoformat(item["start"]),
-                      dt.fromisoformat(item["end"])] for item in raw_output["units"]["USD"] if qr_is_valid(item)])
+    yearly_revenue = {str(item["fy"]): item["val"] for item in raw_output["units"]["USD"] if
+                      yr_is_valid(item, min_year, max_year)}
+    # Do we do an additional scrape of the data finding just quarter we couldn't before, if so found_qrtrs exists
+    if found_qrtrs is None:
+        quarterly_data = get_explicit_quarter_data(raw_output, min_year, max_year)
+    else:
+        quarterly_data = get_frame_quarter_data(raw_output, min_year, max_year, found_qrtrs)
+
     quarterly_data = unique(quarterly_data)
     return quarterly_data, yearly_revenue
 
@@ -108,26 +132,49 @@ def fill_data(yearly_data, quarterly_data):
     return value_data
 
 
-"Gets data from the list of value tags for a particular company, given its cik"
-def get_data(cik, value_tags, data_name, min_year=0, min_quarter=0, max_year=3000, max_quarter=5):
-    values = np.array(['Time-Period', data_name, 'Start of Quarter', 'End of Quarter'])
+def get_value_and_yearly_data(cik, value_tags, min_year, max_year, found_qrtrs = None):
     value_data, yearly_data = None, {}
     # Some value tag words aren't found in certain company's income statements, so we cycle through possibilities
     for i in range(len(value_tags)):
         try:
             url = _sec_url.format(cik, value_tags[i])
-            new_qtr_data, new_yr_data = get_spec_data_given_url(url, min_year-1, max_year+1)
+            new_qtr_data, new_yr_data = get_spec_data_given_url(url, min_year-1, max_year+1, found_qrtrs)
             if new_qtr_data is not None and len(new_qtr_data) > 0 and len(new_qtr_data.shape) > 1:
                 value_data = new_qtr_data if value_data is None else np.concatenate((value_data, new_qtr_data))
             yearly_data = yearly_data | new_yr_data
         except HttpError:
             pass
-    # Fill data
-    value_data = fill_data(yearly_data, value_data)
-    # Precisely filter value data according to given year and quarter constraints
+    return value_data, yearly_data
+
+
+"Returns the number of quarters necessary for the given start and end dates in FY terms"
+def get_number_of_quarters_necessary(start_year, start_quarter, end_year, end_quarter):
+    return max(0, (end_year - start_year - 1)*4) + (5-start_quarter) + (end_quarter)
+
+
+"Corrects the shape and cleans the array given the exact start and end dates"
+def correct_output(value_data, min_year, min_quarter, max_year, max_quarter):
     value_data = np.fromiter(
         (x for x in value_data if is_in_date_bound(x[0], min_year, min_quarter, max_year, max_quarter)),
         dtype=value_data.dtype)
-    value_data = np.stack(value_data)
+    return np.stack(value_data)
+
+
+"Gets data from the list of value tags for a particular company, given its cik"
+def get_data(cik, value_tags, data_name, min_year=0, min_quarter=0, max_year=3000, max_quarter=5):
+    values = np.array(['Time-Period', data_name, 'Start of Quarter', 'End of Quarter'])
+    value_data, yearly_data = get_value_and_yearly_data(cik, value_tags, min_year, max_year)
+    # Fill data
+    value_data = fill_data(yearly_data, value_data)
+    value_data = correct_output(value_data, min_year, min_quarter, max_year, max_quarter)
+    found_qrtrs = dict(zip(value_data[:, 0].flatten(), [1]*len(value_data[:, 0].flatten())))
+    # Find any remaining data, add it and sort the result if something is missing
+    if len(found_qrtrs) < get_number_of_quarters_necessary(min_year, min_quarter, max_year, max_quarter):
+        new_value_data, _ = get_value_and_yearly_data(cik, value_tags, min_year, max_year, found_qrtrs)
+        if new_value_data is not None:
+            value_data = np.vstack([value_data, new_value_data])
+            value_data = value_data[value_data[:, 0].argsort()]
+    # Precisely filter value data according to given year and quarter constraints
+    value_data = correct_output(value_data, min_year, min_quarter, max_year, max_quarter)
     values = np.vstack([values, value_data])
     return values
