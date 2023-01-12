@@ -3,7 +3,7 @@ import json
 import utils as ut
 
 """
-main.py - 
+main.py - The public facing script which includes the main public class (FinData) and all the public, and useful, methods
 """
 
 
