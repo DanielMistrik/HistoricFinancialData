@@ -11,7 +11,7 @@ class TestFinData(TestCase):
         self.fin_data_test_subject = FinData()
 
     def test_get_revenue(self):
-        revenue_data = self.fin_data_test_subject.get_revenue('AAPL',2010,1,2022,4)
+        revenue_data = self.fin_data_test_subject.get_revenue('AAPL', 2010, 1, 2022, 4)
         self.assertEqual(revenue_data.shape, (53, 4), "52 quarters between 2010 and 2022 plus the column names")
         # Relying on data from https://www.apple.com/newsroom/2017/01/apple-reports-record-first-quarter-results/ and
         # https://www.apple.com/newsroom/2016/10/apple-reports-fourth-quarter-results/

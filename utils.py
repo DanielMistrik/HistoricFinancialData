@@ -86,8 +86,8 @@ def get_spec_data_given_url(url, min_year=0, max_year=3000):
         return item["form"] == "10-K" and "fy" in item and "fp" in item and min_year <= int(item["fy"]) <= max_year and\
         330 < (dt.fromisoformat(item["end"]) - dt.fromisoformat(item["start"])).days < 380
     def qr_is_valid(item):
-        return item["form"] in "10-Q/A" and "fy" in item and "fp" in item and min_year <= int(item["fy"]) <= max_year and\
-               60 < (dt.fromisoformat(item["end"]) - dt.fromisoformat(item["start"])).days < 100
+        return item["form"] in "10-Q/A" and "fy" in item and "fp" in item and min_year <= int(item["fy"]) <= max_year \
+        and 60 < (dt.fromisoformat(item["end"]) - dt.fromisoformat(item["start"])).days < 100
 
     # Create tables of quarterly and yearly revenues by parsng the raw output
     yearly_revenue = {str(item["fy"]): item["val"] for item in raw_output["units"]["USD"] if yr_is_valid(item)}
