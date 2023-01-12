@@ -77,7 +77,6 @@ def is_in_date_bound(string_date, min_year, min_quarter, max_year, max_quarter):
     return (min_year <= given_yr <= max_year) & (min_year < given_yr or min_quarter <= given_qtr) & \
             (given_yr < max_year or given_qtr <= max_quarter)
 
-
 "Retrieves the financial data values from the url response from the start of the min_year up to the max_year"
 def get_spec_data_given_url(url, min_year=0, max_year=3000):
     raw_output = get_url_data(url)
@@ -119,5 +118,6 @@ def get_data(cik, value_tags, data_name, min_year=0, min_quarter=0, max_year=300
     # Precisely filter value data according to given year and quarter constraints
     value_data = np.fromiter(
         (x for x in value_data if is_in_date_bound(x[0], min_year, min_quarter, max_year, max_quarter)), dtype=value_data.dtype)
-    values = np.hstack([values, value_data])
+    value_data = np.stack(value_data)
+    values = np.vstack([values, value_data])
     return values
