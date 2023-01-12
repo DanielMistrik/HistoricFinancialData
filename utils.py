@@ -77,6 +77,7 @@ def is_in_date_bound(string_date, min_year, min_quarter, max_year, max_quarter):
     return (min_year <= given_yr <= max_year) & (min_year < given_yr or min_quarter <= given_qtr) & \
             (given_yr < max_year or given_qtr <= max_quarter)
 
+
 "Retrieves the financial data values from the url response from the start of the min_year up to the max_year"
 def get_spec_data_given_url(url, min_year=0, max_year=3000):
     raw_output = get_url_data(url)
@@ -93,31 +94,40 @@ def get_spec_data_given_url(url, min_year=0, max_year=3000):
     quarterly_data = np.array([[str(item["fy"]) + item["fp"], item["val"], dt.fromisoformat(item["start"]),
                       dt.fromisoformat(item["end"])] for item in raw_output["units"]["USD"] if qr_is_valid(item)])
     quarterly_data = unique(quarterly_data)
-    # Fill gaps in the data
-    quarterly_data = fill_financial_data(yearly_revenue, quarterly_data)
-    quarterly_data = fill_dates(quarterly_data)
-    return quarterly_data
+    return quarterly_data, yearly_revenue
+
+
+"Fill the quarterly data given its own information, as a list, and information from the yearly data, a dictionary"
+def fill_data(yearly_data, quarterly_data):
+    # Filter data and make it unique as the above can return double counts
+    _, unique_indices = np.unique(quarterly_data.astype(str)[:, 0], return_index=True, axis=0)
+    value_data = np.take(quarterly_data, unique_indices, 0)
+    # Fill in missing data
+    value_data = fill_financial_data(yearly_data, value_data)
+    value_data = fill_dates(value_data)
+    return value_data
 
 
 "Gets data from the list of value tags for a particular company, given its cik"
 def get_data(cik, value_tags, data_name, min_year=0, min_quarter=0, max_year=3000, max_quarter=5):
     values = np.array(['Time-Period', data_name, 'Start of Quarter', 'End of Quarter'])
-    value_data = None
+    value_data, yearly_data = None, {}
     # Some value tag words aren't found in certain company's income statements, so we cycle through possibilities
     for i in range(len(value_tags)):
         try:
             url = _sec_url.format(cik, value_tags[i])
-            new_rev_data = get_spec_data_given_url(url, min_year, max_year)
-            if new_rev_data is not None and len(new_rev_data) > 0 and len(new_rev_data.shape) > 1:
-                value_data = new_rev_data if value_data is None else np.concatenate((value_data, new_rev_data))
+            new_qtr_data, new_yr_data = get_spec_data_given_url(url, min_year, max_year)
+            if new_qtr_data is not None and len(new_qtr_data) > 0 and len(new_qtr_data.shape) > 1:
+                value_data = new_qtr_data if value_data is None else np.concatenate((value_data, new_qtr_data))
+            yearly_data = yearly_data | new_yr_data
         except HttpError:
             pass
-    # Filter data and make it unique as the above can return double counts
-    _, unique_indices = np.unique(value_data.astype(str)[:, 0], return_index=True, axis=0)
-    value_data = np.take(value_data, unique_indices, 0)
+    # Fill data
+    value_data = fill_data(yearly_data, value_data)
     # Precisely filter value data according to given year and quarter constraints
     value_data = np.fromiter(
-        (x for x in value_data if is_in_date_bound(x[0], min_year, min_quarter, max_year, max_quarter)), dtype=value_data.dtype)
+        (x for x in value_data if is_in_date_bound(x[0], min_year, min_quarter, max_year, max_quarter)),
+        dtype=value_data.dtype)
     value_data = np.stack(value_data)
     values = np.vstack([values, value_data])
     return values
