@@ -57,6 +57,7 @@ class TestFinData(TestCase):
         self.assertEqual(gp_data.shape, (32, 4), "31 quarters between SOY 2014 and 2021Q3 plus the column names")
         # Relying on data from:
         # https://tesla-cdn.thron.com/static/R3GJMT_TSLA_Q1_2021_Update_5KJWZA.pdf
+        # https://www.sec.gov/ix?doc=/Archives/edgar/data/815097/000081509720000030/ccl-20200229.htm
         particular_quarter = gp_data[gp_data[:, 0] == "2020Q1"][0]
         self.assertAlmostEqual(particular_quarter[1] / 1e9, 1.234, 3, "Checking Gross Profit as reported by Tesla")
         self.assertEqual(particular_quarter[2], datetime.datetime(2020, 1, 1), "Checking start date for quarter")
