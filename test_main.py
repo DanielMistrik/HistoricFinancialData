@@ -6,6 +6,7 @@ from main import FinData
 main.py - Testing script containing unit tests for all the public facing methods in main.py
 """
 
+
 class TestFinData(TestCase):
     fin_data_test_subject = None
 
