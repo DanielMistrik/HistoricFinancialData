@@ -2,6 +2,9 @@ import datetime
 from unittest import TestCase
 from main import FinData
 
+"""
+main.py - Testing script containing unit tests for all the public facing methods in main.py
+"""
 
 class TestFinData(TestCase):
     fin_data_test_subject = None
@@ -52,3 +55,9 @@ class TestFinData(TestCase):
     def test_get_gross_profit(self):
         gp_data = self.fin_data_test_subject.get_gross_profit('TSLA', 2014, 1, 2021, 3)
         self.assertEqual(gp_data.shape, (32, 4), "31 quarters between SOY 2014 and 2021Q3 plus the column names")
+        # Relying on data from:
+        # https://tesla-cdn.thron.com/static/R3GJMT_TSLA_Q1_2021_Update_5KJWZA.pdf
+        particular_quarter = gp_data[gp_data[:, 0] == "2020Q1"][0]
+        self.assertAlmostEqual(particular_quarter[1] / 1e9, 1.234, 3, "Checking Gross Profit as reported by Tesla")
+        self.assertEqual(particular_quarter[2], datetime.datetime(2020, 1, 1), "Checking start date for quarter")
+        self.assertEqual(particular_quarter[3], datetime.datetime(2020, 3, 31), "Checking end date for quarter")
