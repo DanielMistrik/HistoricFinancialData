@@ -13,6 +13,7 @@ class FinData:
     _revenue_jargon = ["SalesRevenueNet", "RevenueFromContractWithCustomerExcludingAssessedTax", "SalesRevenueGoodsNet",
                        "Revenues", "RevenueNet", "RevenuesNet"]
     _cor_jargon = ["CostOfGoodsAndServicesSold", "CostOfRevenue", "CostOfGoodsSold", "CostOfServicesSold"]
+    _gross_profit_jargon = ["GrossProfit"]
     _cik_map_url = "https://www.sec.gov/files/company_tickers.json"
     _ticker_cik_map = {}
     _name_cik_map = {}
@@ -84,5 +85,9 @@ class FinData:
         the cost of revenue with the quarters being according to the companies financial calendar and may greatly differ
         from the normal calendar
         """
+        cik = self._ticker_cik_map[ticker]
+        return ut.get_data(cik, self._cor_jargon, 'Cost of Revenue', start_year, start_quarter, end_year, end_quarter)
+
+    def get_gross_profit(self, ticker, start_year=0, start_quarter=0, end_year=3000, end_quarter=5):
         cik = self._ticker_cik_map[ticker]
         return ut.get_data(cik, self._cor_jargon, 'Cost of Revenue', start_year, start_quarter, end_year, end_quarter)

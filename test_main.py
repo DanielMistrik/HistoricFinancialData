@@ -48,3 +48,7 @@ class TestFinData(TestCase):
         self.assertAlmostEqual(particular_quarter[1] / 1e9, 96.999, 3, "Checking Cost of Rev is as reported by Walmart")
         self.assertEqual(particular_quarter[2], datetime.datetime(2015, 11, 1), "Checking start date for quarter")
         self.assertEqual(particular_quarter[3], datetime.datetime(2016, 1, 31), "Checking end date for quarter")
+
+    def test_get_gross_profit(self):
+        gp_data = self.fin_data_test_subject.get_gross_profit('TSLA', 2014, 1, 2021, 3)
+        self.assertEqual(gp_data.shape, (32, 4), "31 quarters between SOY 2014 and 2021Q3 plus the column names")
