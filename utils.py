@@ -10,7 +10,7 @@ utils.py - File for utility functions that largely originated as static methods 
            user. I guarantee no functionality or reliability for direct user.
 """
 # Default API URL for SEC API
-_sec_url = "https://data.sec.gov/api/xbrl/companyconcept/CIK{0}/us-gaap/{1}.json"
+sec_url = "https://data.sec.gov/api/xbrl/companyconcept/CIK{0}/us-gaap/{1}.json"
 # Constants
 ONE_DAY_DATETIME = datetime.timedelta(days=1)
 
@@ -133,12 +133,13 @@ def safe_np_append(main_data, additional_data):
 def get_missing_time_periods(data):
     missing_time_periods, last_date = None, None
     average_quarter_length = None
-    for row in data:
-        if last_date is not None and row[2] is not None and (row[2] - last_date).days > 1:
-            new_data = np.array([last_date+ONE_DAY_DATETIME, row[2]-ONE_DAY_DATETIME])
-            average_quarter_length = (row[2] - last_date).days
+    # Iterate over quarters and record the gaps between them, a missing time period which is likely a missing quarter
+    for quarter_info in data:
+        if last_date is not None and quarter_info[2] is not None and (quarter_info[2] - last_date).days > 1:
+            new_data = np.array([last_date+ONE_DAY_DATETIME, quarter_info[2]-ONE_DAY_DATETIME])
+            average_quarter_length = (quarter_info[2] - last_date).days
             missing_time_periods = safe_np_append(missing_time_periods, new_data)
-        last_date = row[3]
+        last_date = quarter_info[3]
     # Add a last date as the function calling this will always work on whole years and as such ignore the last Q4
     if last_date is not None:
         end_of_latest_quarter = last_date + datetime.timedelta(days=(average_quarter_length - 1))
@@ -206,7 +207,7 @@ def get_value_and_yearly_data(cik, value_tags, min_year, max_year, found_qrtrs =
     # Some value tag words aren't found in certain company's income statements, so we cycle through possibilities
     for i in range(len(value_tags)):
         try:
-            url = _sec_url.format(cik, value_tags[i])
+            url = sec_url.format(cik, value_tags[i])
             new_qtr_data, new_yr_data, missing_time_periods = \
                 get_spec_data_given_url(url, min_year-1, max_year+1, found_qrtrs, missing_time_periods)
             if new_qtr_data is not None and len(new_qtr_data) > 0 and len(new_qtr_data.shape) > 1:
