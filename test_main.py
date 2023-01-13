@@ -41,3 +41,10 @@ class TestFinData(TestCase):
     def test_get_cost_of_revenue(self):
         cor_data = self.fin_data_test_subject.get_cost_of_revenue('WMT', 2013, 2, 2019, 4)
         self.assertEqual(cor_data.shape, (28, 4), "27 quarters between 2013Q2 and EOY 2019 plus the column names")
+        # Relying on data from:
+        # https://s201.q4cdn.com/262069030/files/doc_financials/2016/q4/Q4-FY16-press-release-final.pdf
+        # https://s201.q4cdn.com/262069030/files/doc_financials/2016/q3/Press-Release.pdf
+        particular_quarter = cor_data[cor_data[:, 0] == "2016Q4"][0]
+        self.assertAlmostEqual(particular_quarter[1] / 1e9, 96.999, 3, "Checking Cost of Rev is as reported by Walmart")
+        self.assertEqual(particular_quarter[2], datetime.datetime(2015, 11, 1), "Checking start date for quarter")
+        self.assertEqual(particular_quarter[3], datetime.datetime(2016, 1, 31), "Checking end date for quarter")

@@ -78,6 +78,19 @@ def is_in_date_bound(string_date, min_year, min_quarter, max_year, max_quarter):
             (given_yr < max_year or given_qtr <= max_quarter)
 
 
+"""Sometimes the SEC reports financial quarters that are too late in the calendar year to be valid and
+    and as such conflict with company data"""
+def is_fy_date_frontrunning(start, fy, fp):
+    if start.year > fy:
+        return True
+    if start.year == fy:
+        latest_start = {"Q1":1, "Q2":4, "Q3":7, "Q4":10}
+        if latest_start[fp] < start.month or (latest_start[fp] == start.month and start.day > 1):
+            return True
+        return False
+    return False
+
+
 "Filter for valid yearly and quarterly revenue data"
 def yr_is_valid(item, min_year, max_year):
     return item["form"] == "10-K" and "fy" in item and "fp" in item and min_year <= int(item["fy"]) <= max_year and\
@@ -85,8 +98,9 @@ def yr_is_valid(item, min_year, max_year):
 
 
 def qr_is_valid(item, min_year, max_year):
-    return "fp" in item and item["form"] in "10-Q/A" and min_year <= int(item["fy"]) <= max_year and "fy" in item\
-                    and 60 < (dt.fromisoformat(item["end"]) - dt.fromisoformat(item["start"])).days < 100
+    return "fp" in item and item["form"] in "10-Q/A" and min_year <= int(item["fy"]) <= max_year and "fy" in item \
+           and 60 < (dt.fromisoformat(item["end"]) - dt.fromisoformat(item["start"])).days < 100 and \
+           not is_fy_date_frontrunning(dt.fromisoformat(item["start"]), item["fy"], item["fp"])
 
 
 "Return quarters marked by frame rather than year and quarter"
@@ -105,6 +119,35 @@ def get_explicit_quarter_data(raw_output, min_year, max_year):
                      qr_is_valid(item, min_year, max_year)])
 
 
+"Given a sorted value data 2d np array it returns the missing time periods"
+def get_missing_time_periods(data):
+    missing_time_periods, last_date = None, None
+    for row in data[:-1]:
+        if last_date is None:
+            last_date = row[3]
+            continue
+        elif (row[2] - last_date).days > 1:
+            new_data = np.array([last_date+datetime.timedelta(days=1), row[2]-datetime.timedelta(days=1)])
+            missing_time_periods = new_data if missing_time_periods is None else np.vstack([missing_time_periods, new_data])
+        last_date = row[3]
+    return missing_time_periods
+
+
+"Returns quarterly data that matches the time periods and most of the qr_is_valid() conditions except the form req"
+def get_quarterly_data_based_on_time_periods(raw_output, time_periods):
+    missing_data = None
+    for item in raw_output["units"]["USD"]:
+        start_date = dt.fromisoformat(item["start"])
+        end_date = dt.fromisoformat(item["end"])
+        if np.array([start_date, end_date]) in time_periods and 'fy' in item \
+                and 60 < (end_date - start_date).days < 100 and 'fp' in item \
+                and not is_fy_date_frontrunning(start_date, item["fy"], "Q4"):
+            new_data = [np.array([str(end_date.year)+"Q4", item["val"], start_date, end_date])]
+            missing_data = new_data if missing_data is None else np.vstack([missing_data, new_data])
+
+    return unique(missing_data) if missing_data is not None else None
+
+
 "Retrieves the financial data values from the url response from the start of the min_year up to the max_year"
 def get_spec_data_given_url(url, min_year=0, max_year=3000, found_qrtrs=None):
     raw_output = get_url_data(url)
@@ -114,10 +157,16 @@ def get_spec_data_given_url(url, min_year=0, max_year=3000, found_qrtrs=None):
     # Do we do an additional scrape of the data finding just quarter we couldn't before, if so found_qrtrs exists
     if found_qrtrs is None:
         quarterly_data = get_explicit_quarter_data(raw_output, min_year, max_year)
+        quarterly_data = unique(quarterly_data)
+        missing_time_periods = get_missing_time_periods(quarterly_data)
+        if missing_time_periods is not None:
+            missing_data = get_quarterly_data_based_on_time_periods(raw_output, missing_time_periods)
+            if missing_data is not None:
+                quarterly_data = np.vstack([quarterly_data, missing_data])
+                quarterly_data = quarterly_data[quarterly_data[:, 0].argsort()]
     else:
         quarterly_data = get_frame_quarter_data(raw_output, min_year, max_year, found_qrtrs)
-
-    quarterly_data = unique(quarterly_data)
+        quarterly_data = unique(quarterly_data)
     return quarterly_data, yearly_revenue
 
 
@@ -132,6 +181,7 @@ def fill_data(yearly_data, quarterly_data):
     return value_data
 
 
+"Given value tags, it returns the quarterly and yearly data"
 def get_value_and_yearly_data(cik, value_tags, min_year, max_year, found_qrtrs = None):
     value_data, yearly_data = None, {}
     # Some value tag words aren't found in certain company's income statements, so we cycle through possibilities
