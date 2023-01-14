@@ -63,3 +63,7 @@ class TestFinData(TestCase):
         self.assertAlmostEqual(particular_quarter[1] / 1e9, 1.234, 3, "Checking Gross Profit as reported by Tesla")
         self.assertEqual(particular_quarter[2], datetime.datetime(2020, 1, 1), "Checking start date for quarter")
         self.assertEqual(particular_quarter[3], datetime.datetime(2020, 3, 31), "Checking end date for quarter")
+
+    def test_get_operating_income(self):
+        oi_data = self.fin_data_test_subject.get_operating_income('CCL', 2012, 1, 2022, 1)
+        self.assertEqual(oi_data.shape, (42, 4), "41 quarters between SOY 2012 and 2022Q1 plus the column names")

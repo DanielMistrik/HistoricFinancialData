@@ -10,10 +10,11 @@ main.py - The public facing script which includes the main public class (FinData
 
 class FinData:
     # Defining fields to access and extract data from the SEC API
-    _revenue_jargon = ["SalesRevenueNet", "RevenueFromContractWithCustomerExcludingAssessedTax", "SalesRevenueGoodsNet",
-                       "Revenues", "RevenueNet", "RevenuesNet"]
+    _rev_jargon = ["SalesRevenueNet", "RevenueFromContractWithCustomerExcludingAssessedTax", "SalesRevenueGoodsNet",
+                   "Revenues", "RevenueNet", "RevenuesNet"]
     _cor_jargon = ["CostOfGoodsAndServicesSold", "CostOfRevenue", "CostOfGoodsSold", "CostOfServicesSold"]
     _g_profit_jargon = ["GrossProfit"]
+    _op_inc_jargon = ["OperatingIncomeLoss"]
     _cik_map_url = "https://www.sec.gov/files/company_tickers.json"
     _ticker_cik_map = {}
     _name_cik_map = {}
@@ -50,7 +51,7 @@ class FinData:
         calendar
         """
         cik = self._ticker_cik_map[ticker]
-        return ut.get_data(cik, self._revenue_jargon, 'Revenue', start_year, start_quarter, end_year, end_quarter)
+        return ut.get_data(cik, self._rev_jargon, 'Revenue', start_year, start_quarter, end_year, end_quarter)
 
     def get_dates(self, ticker, start_year=0, start_quarter=0, end_year=3000, end_quarter=5):
         """
@@ -67,7 +68,7 @@ class FinData:
         """
         cik = self._ticker_cik_map[ticker]
         # To maximize code re-use I am using the same set-up as with get_revenues and then deleting the revenues after
-        raw_data = ut.get_data(cik, self._revenue_jargon, None, start_year, start_quarter, end_year, end_quarter)
+        raw_data = ut.get_data(cik, self._rev_jargon, None, start_year, start_quarter, end_year, end_quarter)
         filtered_data = np.delete(raw_data, 1, 1)
         return filtered_data
 
@@ -105,3 +106,8 @@ class FinData:
         """
         cik = self._ticker_cik_map[ticker]
         return ut.get_data(cik, self._g_profit_jargon, 'Gross Profit', start_year, start_quarter, end_year, end_quarter)
+
+    def get_operating_income(self, ticker, start_year=0, start_quarter=0, end_year=3000, end_quarter=5):
+        cik = self._ticker_cik_map[ticker]
+        return ut.get_data(cik, self._op_inc_jargon, 'Operating Income', start_year, start_quarter, end_year, end_quarter)
+
