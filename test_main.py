@@ -15,11 +15,12 @@ class TestFinData(TestCase):
         self.fin_data_test_subject = FinData()
 
     def _check_quarter_data(self, quarter_data, quarter_fy_date, expected_length, expected_width, size_msg,
-                            quarter_value, value_accuracy, value_msg, quarter_start, quarter_end):
+                            quarter_value, value_accuracy, value_msg, quarter_start, quarter_end, divide_value=True):
         """Internal function to check the reported quarter by the library and actual quarter are the same"""
         self.assertEqual(quarter_data.shape, (expected_length, expected_width), size_msg)
         particular_quarter = quarter_data[quarter_data[:, 0] == quarter_fy_date][0]
-        self.assertAlmostEqual(particular_quarter[1] / 1e9, quarter_value, value_accuracy, value_msg)
+        parsed_value = particular_quarter[1] / 1e9 if divide_value else particular_quarter[1]
+        self.assertAlmostEqual(parsed_value, quarter_value, value_accuracy, value_msg)
         self.assertEqual(particular_quarter[2], quarter_start, "Checking start date for quarter")
         self.assertEqual(particular_quarter[3], quarter_end, "Checking end date for quarter")
 
@@ -77,6 +78,28 @@ class TestFinData(TestCase):
         # https://www.carnivalcorp.com/static-files/65a2aae3-7fc1-4e9b-b5ed-ea730210984b
         self._check_quarter_data(oi_data, "2013Q3", 42, 4,
                                  "41 quarters between SOY 2012 and 2022Q1 plus the column names", 0.951, 3,
-                                 "Checking Operating income as reported by Carnival", datetime.datetime(2013, 6, 1),
+                                 "Checking Operating Income as reported by Carnival", datetime.datetime(2013, 6, 1),
                                  datetime.datetime(2013, 8, 31))
 
+    def test_get_net_income(self):
+        np_data = self.fin_data_test_subject.get_net_profit('NFLX', 2015, 1, 2019, 4)
+        # Relying on data from:
+        # https://www.cnbc.com/2019/01/16/netflix-earnings-q4-2018.html
+        # http://q4live.s22.clientfiles.s3-website-us-east-1.amazonaws.com/959853165/files/doc_financials/quarterly_reports/2018/q4/01/FINAL-Q4-18-Shareholder-Letter.pdf
+        # https://www.sec.gov/Archives/edgar/data/1065280/000106528018000538/nflx-093018x10qxdoc.htm
+        self._check_quarter_data(np_data, "2018Q4", 21, 4, "20 quarters between SOY 2015 and 2019 EOY plus column names"
+                                 , 0.134, 3, "Checking Net Profit as reported by Netflix",
+                                 datetime.datetime(2018, 10, 1), datetime.datetime(2018, 12, 31))
+
+    def test_get_eps(self):
+        eps_basic_data = self.fin_data_test_subject.get_eps('MA', 2021, 1, 2021, 4)
+        eps_diluted_data = self.fin_data_test_subject.get_eps('MA', 2020, 1, 2021, 4, is_diluted=True)
+        # Relying on data from:
+        # https://s25.q4cdn.com/479285134/files/doc_financials/2021/q2/2Q21-Mastercard-Earnings-Release.pdf
+        # https://s25.q4cdn.com/479285134/files/doc_financials/2021/q2/Mastercard-06.30.2021-10-Q-as-filed-w-Exhibits.pdf
+        self._check_quarter_data(eps_basic_data, "2021Q2", 5, 4, "4 quarters in one year plus column names"
+                                 , 2.09, 2, "Checking Basic EPS as reported by Mastercard",
+                                 datetime.datetime(2021, 4, 1), datetime.datetime(2021, 6, 30), divide_value=False)
+        self._check_quarter_data(eps_diluted_data, "2021Q2", 9, 4, "8 quarters in two years plus column names"
+                                 , 2.08, 2, "Checking Diluted EPS as reported by Mastercard",
+                                 datetime.datetime(2021, 4, 1), datetime.datetime(2021, 6, 30), divide_value=False)
