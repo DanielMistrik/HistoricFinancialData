@@ -13,8 +13,9 @@ class FinData:
     _rev_jargon = ["SalesRevenueNet", "RevenueFromContractWithCustomerExcludingAssessedTax", "SalesRevenueGoodsNet",
                    "Revenues", "RevenueNet", "RevenuesNet"]
     _cor_jargon = ["CostOfGoodsAndServicesSold", "CostOfRevenue", "CostOfGoodsSold", "CostOfServicesSold"]
-    _g_profit_jargon = ["GrossProfit"]
+    _g_profit_jargon, _n_profit_jargon = ["GrossProfit"], ["NetIncomeLoss"]
     _op_inc_jargon = ["OperatingIncomeLoss"]
+    _eps_basic_jargon, _eps_diluted_jargon = ["EarningsPerShareBasic"], ["EarningsPerShareDiluted"]
     _cik_map_url = "https://www.sec.gov/files/company_tickers.json"
     _ticker_cik_map = {}
     _name_cik_map = {}
@@ -122,5 +123,50 @@ class FinData:
         differ from the normal calendar
         """
         cik = self._ticker_cik_map[ticker]
-        return ut.get_data(cik, self._op_inc_jargon, 'Operating Income', start_year, start_quarter, end_year, end_quarter)
+        return ut.get_data(cik, self._op_inc_jargon, 'Operating Income', start_year, start_quarter, end_year,
+                           end_quarter)
+
+    def get_net_profit(self, ticker, start_year=0, start_quarter=0, end_year=3000, end_quarter=5):
+        """
+        get_net_profit - Returns the company's net profit, per company financial quarter, for the provided time. Works
+        off SEC 10-Q/A and 10-K fillings so for some companies, notably banks, the function won't be able to return
+        valid data and its behaviour with these companies is undocumented
+        :param ticker: The stock market ticker identifying your company of interest as a string.
+        :param start_year: The company's financial year you want to start data collection from as an integer
+        :param start_quarter: The company's financial quarter you want to start data collection from as an integer
+        :param end_year: The company's financial year you want to end data collection with as an integer (inclusive)
+        :param end_quarter: The company's financial quarter you want to end data collection with as an integer (inclusive)
+        :return: A numpy array with the first row being column names and the remainder being the quarter data along with
+        the net profit with the quarters being according to the companies financial calendar and may greatly differ
+        from the normal calendar
+        """
+        cik = self._ticker_cik_map[ticker]
+        return ut.get_data(cik, self._n_profit_jargon, 'Net Profit', start_year, start_quarter, end_year,
+                           end_quarter)
+
+    def get_eps(self, ticker, start_year=0, start_quarter=0, end_year=3000, end_quarter=5, is_diluted = False):
+        """
+        get_net_profit - Returns the company's earning per share (basic or diluted), per company financial quarter, for
+        the provided time. Works off SEC 10-Q/A and 10-K fillings so for some companies, notably banks, the function
+        won't be able to return valid data and its behaviour with these companies is undocumented.
+        :param ticker: The stock market ticker identifying your company of interest as a string.
+        :param start_year: The company's financial year you want to start data collection from as an integer
+        :param start_quarter: The company's financial quarter you want to start data collection from as an integer
+        :param end_year: The company's financial year you want to end data collection with as an integer (inclusive)
+        :param end_quarter: The company's financial quarter you want to end data collection with as an integer (inclusive)
+        :param is_diluted: Whether the EPS data returned is diluted or basic, default is basic.
+        :return: A numpy array with the first row being column names and the remainder being the quarter data along with
+        the EPS data with the quarters being according to the companies financial calendar and may greatly differ from
+        the normal calendar
+        """
+        cik = self._ticker_cik_map[ticker]
+        if is_diluted:
+            data = ut.get_data(cik, self._eps_diluted_jargon, 'EPS (Diluted)', start_year, start_quarter, end_year,
+                               end_quarter)
+        else:
+            data = ut.get_data(cik, self._eps_basic_jargon, 'EPS (Basic)', start_year, start_quarter, end_year,
+                               end_quarter)
+        # Round the data to 2 dp as the filling and floating point approx error can leave a weird number
+        data[1:, 1] = [np.round(x, 2) for x in data[1:, 1]]
+        return data
 

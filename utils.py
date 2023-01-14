@@ -3,6 +3,7 @@ from datetime import datetime as dt
 import requests
 import json
 import numpy as np
+from math import isclose
 from exceptions import *
 
 """
@@ -24,10 +25,10 @@ def fill_financial_data(yearly_revenue, quarterly_data):
             if quarter_year not in missng_qrtr_sum:
                 missng_qrtr_sum[quarter_year] = 10  # 4+3+2+1 = 10
             missng_qrtr_sum[quarter_year] -= int(quarter[0][5])  # Subtract q-val so we can isolate missing quarter
-            yearly_revenue[quarter_year] -= int(quarter[1])
+            yearly_revenue[quarter_year] -= int(quarter[1]) if isinstance(quarter[1], int) else float(quarter[1])
     for year in yearly_revenue.keys():
         # Add quarter if it is the only one missing and all other quarters are accounted for in a given year
-        if (yearly_revenue[year] >> 2) != 0 and year in missng_qrtr_sum and 0 < missng_qrtr_sum[year] < 5:
+        if not isclose(yearly_revenue[year], 0, abs_tol=0.2) and year in missng_qrtr_sum and 0 < missng_qrtr_sum[year] < 5:
             new_quarter = np.array([str(year) + "Q" + str(missng_qrtr_sum[year]), yearly_revenue[year], None, None])
             quarterly_data = np.vstack([quarterly_data, new_quarter])
     # Re-sort the data so its sequential if non-empty and properly shaped
@@ -106,18 +107,18 @@ def qr_is_valid(item, min_year, max_year):
 
 
 "Return quarters marked by frame rather than year and quarter"
-def get_frame_quarter_data(raw_output, min_year, max_year, found_qrtrs):
+def get_frame_quarter_data(raw_output, min_year, max_year, found_qrtrs, value_list_name):
         frame_quarter_data = np.array([[item["frame"][2:], item["val"], dt.fromisoformat(item["start"]),
-                            dt.fromisoformat(item["end"])] for item in raw_output["units"]["USD"] if "frame" in item \
-                            and "Q" in item["frame"] and item["frame"][2:] not in found_qrtrs and "fy" in item \
+                            dt.fromisoformat(item["end"])] for item in raw_output["units"][value_list_name] if "frame"
+                            in item and "Q" in item["frame"] and item["frame"][2:] not in found_qrtrs and "fy" in item
                             and min_year <= int(item["frame"][2:6]) <= max_year])
         return frame_quarter_data
 
 
 "Return quarters marked by year and quarter explicitly"
-def get_explicit_quarter_data(raw_output, min_year, max_year):
+def get_explicit_quarter_data(raw_output, min_year, max_year, value_list_name):
     return np.array([[str(item["fy"]) + item["fp"], item["val"], dt.fromisoformat(item["start"]),
-                      dt.fromisoformat(item["end"])] for item in raw_output["units"]["USD"] if
+                      dt.fromisoformat(item["end"])] for item in raw_output["units"][value_list_name] if
                      qr_is_valid(item, min_year, max_year)])
 
 
@@ -149,9 +150,9 @@ def get_missing_time_periods(data):
 
 
 "Returns quarterly data that matches the time periods and most of the qr_is_valid() conditions except the form req"
-def get_quarterly_data_from_time_periods(raw_output, time_periods):
+def get_quarterly_data_from_time_periods(raw_output, time_periods, value_list_name):
     missing_data = None
-    for item in raw_output["units"]["USD"]:
+    for item in raw_output["units"][value_list_name]:
         start_date = dt.fromisoformat(item["start"])
         end_date = dt.fromisoformat(item["end"])
         if np.array([start_date, end_date]) in time_periods and 'fy' in item \
@@ -170,22 +171,24 @@ def get_quarterly_data_from_time_periods(raw_output, time_periods):
 "Retrieves the financial data values from the url response from the start of the min_year up to the max_year"
 def get_spec_data_given_url(url, min_year=0, max_year=3000, found_qrtrs=None, missing_time_periods = None):
     raw_output = get_url_data(url)
-    # Create tables of quarterly and yearly revenues by parsng the raw output
-    yearly_revenue = {str(item["fy"]): item["val"] for item in raw_output["units"]["USD"] if
+    value_list_name = list(raw_output["units"].keys())[0] # Always only one key so order/indicies don't matter
+    # Create tables of quarterly and yearly revenues by parsing the raw output
+    yearly_revenue = {str(item["fy"]): item["val"] for item in raw_output["units"][value_list_name] if
                       yr_is_valid(item, min_year, max_year)}
     # Do we do an additional scrape of the data finding just quarter we couldn't before, if so found_qrtrs exists
     if found_qrtrs is None:
-        quarterly_data = get_explicit_quarter_data(raw_output, min_year, max_year)
+        quarterly_data = get_explicit_quarter_data(raw_output, min_year, max_year, value_list_name)
         quarterly_data = unique(quarterly_data)
         new_missing_time_periods = get_missing_time_periods(quarterly_data)
         missing_time_periods = safe_np_append(missing_time_periods, new_missing_time_periods)
         if missing_time_periods is not None:
-            missing_data, missing_time_periods = get_quarterly_data_from_time_periods(raw_output, missing_time_periods)
+            missing_data, missing_time_periods = get_quarterly_data_from_time_periods(raw_output, missing_time_periods,
+                                                                                      value_list_name)
             if missing_data is not None:
                 quarterly_data = safe_np_append(quarterly_data, missing_data)
                 quarterly_data = quarterly_data[quarterly_data[:, 0].argsort()]
     else:
-        quarterly_data = get_frame_quarter_data(raw_output, min_year, max_year, found_qrtrs)
+        quarterly_data = get_frame_quarter_data(raw_output, min_year, max_year, found_qrtrs, value_list_name)
         quarterly_data = unique(quarterly_data)
     return quarterly_data, yearly_revenue, missing_time_periods
 
@@ -220,7 +223,7 @@ def get_value_and_yearly_data(cik, value_tags, min_year, max_year, found_qrtrs =
 
 "Returns the number of quarters necessary for the given start and end dates in FY terms"
 def get_number_of_quarters_necessary(start_year, start_quarter, end_year, end_quarter):
-    return max(0, (end_year - start_year - 1)*4) + (5-start_quarter) + (end_quarter)
+    return (end_year - start_year - 1)*4 + (5-start_quarter) + (end_quarter)
 
 
 "Corrects the shape and cleans the array given the exact start and end dates"
