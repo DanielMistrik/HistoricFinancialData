@@ -14,16 +14,23 @@ class TestFinData(TestCase):
         super(TestFinData, self).__init__(*args, **kwargs)
         self.fin_data_test_subject = FinData()
 
+    def _check_quarter_data(self, quarter_data, quarter_fy_date, expected_length, expected_width, size_msg,
+                            quarter_value, value_accuracy, value_msg, quarter_start, quarter_end):
+        """Internal function to check the reported quarter by the library and actual quarter are the same"""
+        self.assertEqual(quarter_data.shape, (expected_length, expected_width), size_msg)
+        particular_quarter = quarter_data[quarter_data[:, 0] == quarter_fy_date][0]
+        self.assertAlmostEqual(particular_quarter[1] / 1e9, quarter_value, value_accuracy, value_msg)
+        self.assertEqual(particular_quarter[2], quarter_start, "Checking start date for quarter")
+        self.assertEqual(particular_quarter[3], quarter_end, "Checking end date for quarter")
+
     def test_get_revenue(self):
         revenue_data = self.fin_data_test_subject.get_revenue('AAPL', 2010, 1, 2022, 4)
-        self.assertEqual(revenue_data.shape, (53, 4), "52 quarters between SOY 2010 and EOY 2022 plus the column names")
         # Relying on data from https://www.apple.com/newsroom/2017/01/apple-reports-record-first-quarter-results/ and
         # https://www.apple.com/newsroom/2016/10/apple-reports-fourth-quarter-results/
-        # Quarter picked at random
-        particular_quarter = revenue_data[revenue_data[:, 0] == "2017Q1"][0]
-        self.assertAlmostEqual(particular_quarter[1]/1e9, 78.4, 1, "Checking revenue is as reported by Apple")
-        self.assertEqual(particular_quarter[2], datetime.datetime(2016, 9, 25), "Checking start date for quarter")
-        self.assertEqual(particular_quarter[3], datetime.datetime(2016, 12, 31), "Checking end date for quarter")
+        self._check_quarter_data(revenue_data, "2017Q1", 53, 4,
+                                 "52 quarters between SOY 2010 and EOY 2022 plus the column names", 78.4, 1,
+                                 "Checking revenue is as reported by Apple", datetime.datetime(2016, 9, 25),
+                                 datetime.datetime(2016, 12, 31))
 
     def test_get_dates(self):
         date_data = self.fin_data_test_subject.get_dates('MSFT', 2011, 1, 2017, 4)
@@ -44,35 +51,32 @@ class TestFinData(TestCase):
 
     def test_get_cost_of_revenue(self):
         cor_data = self.fin_data_test_subject.get_cost_of_revenue('WMT', 2013, 2, 2019, 4)
-        self.assertEqual(cor_data.shape, (28, 4), "27 quarters between 2013Q2 and EOY 2019 plus the column names")
         # Relying on data from:
         # https://s201.q4cdn.com/262069030/files/doc_financials/2016/q4/Q4-FY16-press-release-final.pdf
         # https://s201.q4cdn.com/262069030/files/doc_financials/2016/q3/Press-Release.pdf
-        particular_quarter = cor_data[cor_data[:, 0] == "2016Q4"][0]
-        self.assertAlmostEqual(particular_quarter[1] / 1e9, 96.999, 3, "Checking Cost of Rev is as reported by Walmart")
-        self.assertEqual(particular_quarter[2], datetime.datetime(2015, 11, 1), "Checking start date for quarter")
-        self.assertEqual(particular_quarter[3], datetime.datetime(2016, 1, 31), "Checking end date for quarter")
+        self._check_quarter_data(cor_data, "2016Q4", 28, 4,
+                                 "27 quarters between 2013Q2 and EOY 2019 plus the column names", 96.999, 3,
+                                 "Checking Cost of Revenue is as reported by Walmart", datetime.datetime(2015, 11, 1),
+                                 datetime.datetime(2016, 1, 31))
 
     def test_get_gross_profit(self):
         gp_data = self.fin_data_test_subject.get_gross_profit('TSLA', 2014, 1, 2021, 3)
-        self.assertEqual(gp_data.shape, (32, 4), "31 quarters between SOY 2014 and 2021Q3 plus the column names")
         # Relying on data from:
         # https://tesla-cdn.thron.com/static/R3GJMT_TSLA_Q1_2021_Update_5KJWZA.pdf
         # https://www.sec.gov/ix?doc=/Archives/edgar/data/815097/000081509720000030/ccl-20200229.htm
-        particular_quarter = gp_data[gp_data[:, 0] == "2020Q1"][0]
-        self.assertAlmostEqual(particular_quarter[1] / 1e9, 1.234, 3, "Checking Gross Profit as reported by Tesla")
-        self.assertEqual(particular_quarter[2], datetime.datetime(2020, 1, 1), "Checking start date for quarter")
-        self.assertEqual(particular_quarter[3], datetime.datetime(2020, 3, 31), "Checking end date for quarter")
+        self._check_quarter_data(gp_data, "2020Q1", 32, 4,
+                                 "31 quarters between SOY 2014 and 2021Q3 plus the column names", 1.234, 3,
+                                 "Checking Gross Profit as reported by Tesla", datetime.datetime(2020, 1, 1),
+                                 datetime.datetime(2020, 3, 31))
 
     def test_get_operating_income(self):
         oi_data = self.fin_data_test_subject.get_operating_income('CCL', 2012, 1, 2022, 1)
-        self.assertEqual(oi_data.shape, (42, 4), "41 quarters between SOY 2012 and 2022Q1 plus the column names")
         # Relying on data from:
         # https://www.carnivalcorp.com/static-files/ed3fc7f1-5159-4cb8-8a04-c50fe937f589
         # https://www.carnivalcorp.com/static-files/edb95ca0-1883-4bb8-84c7-28ce4ed0f37d
         # https://www.carnivalcorp.com/static-files/65a2aae3-7fc1-4e9b-b5ed-ea730210984b
-        particular_quarter = oi_data[oi_data[:, 0] == "2013Q3"][0]
-        self.assertAlmostEqual(particular_quarter[1] / 1e9, 0.951, 3, "Checking Operating income as reported by Carnival")
-        self.assertEqual(particular_quarter[2], datetime.datetime(2013, 6, 1), "Checking start date for quarter")
-        self.assertEqual(particular_quarter[3], datetime.datetime(2013, 8, 31), "Checking end date for quarter")
+        self._check_quarter_data(oi_data, "2013Q3", 42, 4,
+                                 "41 quarters between SOY 2012 and 2022Q1 plus the column names", 0.951, 3,
+                                 "Checking Operating income as reported by Carnival", datetime.datetime(2013, 6, 1),
+                                 datetime.datetime(2013, 8, 31))
 
