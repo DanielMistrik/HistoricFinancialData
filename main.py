@@ -10,10 +10,11 @@ main.py - The public facing script which includes the main public class (FinData
 
 class FinData:
     # Defining fields to access and extract data from the SEC API
-    _revenue_jargon = ["SalesRevenueNet", "RevenueFromContractWithCustomerExcludingAssessedTax", "SalesRevenueGoodsNet",
-                       "Revenues", "RevenueNet", "RevenuesNet"]
+    _rev_jargon = ["SalesRevenueNet", "RevenueFromContractWithCustomerExcludingAssessedTax", "SalesRevenueGoodsNet",
+                   "Revenues", "RevenueNet", "RevenuesNet"]
     _cor_jargon = ["CostOfGoodsAndServicesSold", "CostOfRevenue", "CostOfGoodsSold", "CostOfServicesSold"]
     _g_profit_jargon = ["GrossProfit"]
+    _op_inc_jargon = ["OperatingIncomeLoss"]
     _cik_map_url = "https://www.sec.gov/files/company_tickers.json"
     _ticker_cik_map = {}
     _name_cik_map = {}
@@ -50,7 +51,7 @@ class FinData:
         calendar
         """
         cik = self._ticker_cik_map[ticker]
-        return ut.get_data(cik, self._revenue_jargon, 'Revenue', start_year, start_quarter, end_year, end_quarter)
+        return ut.get_data(cik, self._rev_jargon, 'Revenue', start_year, start_quarter, end_year, end_quarter)
 
     def get_dates(self, ticker, start_year=0, start_quarter=0, end_year=3000, end_quarter=5):
         """
@@ -67,16 +68,16 @@ class FinData:
         """
         cik = self._ticker_cik_map[ticker]
         # To maximize code re-use I am using the same set-up as with get_revenues and then deleting the revenues after
-        raw_data = ut.get_data(cik, self._revenue_jargon, None, start_year, start_quarter, end_year, end_quarter)
+        raw_data = ut.get_data(cik, self._rev_jargon, None, start_year, start_quarter, end_year, end_quarter)
         filtered_data = np.delete(raw_data, 1, 1)
         return filtered_data
 
     def get_cost_of_revenue(self, ticker, start_year=0, start_quarter=0, end_year=3000, end_quarter=5):
         """
-        get_cost_of_revenue - Returns the exact dates each financial quarter, as defined by the company, falls into.
-        Works off SEC 10-Q/A and 10-K fillings so for some companies, notably banks, the function won't be able to
-        return dates. Additionally, due to some companies' financial practices, not everyone documents strict cost of
-        revenue
+        get_cost_of_revenue - Returns the company's cost of revenue, per company financial quarter, for the provided
+        time bounds. Works off SEC 10-Q/A and 10-K fillings so for some companies, notably banks, the function won't be
+        able to return anything. Additionally, due to some companies' financial practices, not everyone documents strict
+        cost of revenue so the function's behaviour with these companies is undocumented
         :param ticker: The stock market ticker identifying your company of interest as a string.
         :param start_year: The company's financial year you want to start data collection from as an integer
         :param start_quarter: The company's financial quarter you want to start data collection from as an integer
@@ -91,9 +92,9 @@ class FinData:
 
     def get_gross_profit(self, ticker, start_year=0, start_quarter=0, end_year=3000, end_quarter=5):
         """
-        get_gross_profit - Returns the exact dates each financial quarter, as defined by the company, falls into. Works
-        off SEC 10-Q/A and 10-K fillings so for some companies, notably banks, the function won't be able to return
-        dates. Additionally, due to their financial practices, many companies don't record gross profit
+        get_gross_profit - Returns the company's gross profit, per company financial quarter, for the provided time
+        bounds. Works off SEC 10-Q/A and 10-K fillings so for some companies, notably banks, the function won't be able
+        to return anything. Additionally, due to their financial practices, many companies don't record gross profit
         :param ticker: The stock market ticker identifying your company of interest as a string.
         :param start_year: The company's financial year you want to start data collection from as an integer
         :param start_quarter: The company's financial quarter you want to start data collection from as an integer
@@ -105,3 +106,21 @@ class FinData:
         """
         cik = self._ticker_cik_map[ticker]
         return ut.get_data(cik, self._g_profit_jargon, 'Gross Profit', start_year, start_quarter, end_year, end_quarter)
+
+    def get_operating_income(self, ticker, start_year=0, start_quarter=0, end_year=3000, end_quarter=5):
+        """
+        get_operating_income - Returns the company's operating income, per company financial quarter, for the provided
+        time. Works off SEC 10-Q/A and 10-K fillings so for some companies, notably banks, the function won't be able to
+        return valid data and its behaviour with these companies is undocumented
+        :param ticker: The stock market ticker identifying your company of interest as a string.
+        :param start_year: The company's financial year you want to start data collection from as an integer
+        :param start_quarter: The company's financial quarter you want to start data collection from as an integer
+        :param end_year: The company's financial year you want to end data collection with as an integer (inclusive)
+        :param end_quarter: The company's financial quarter you want to end data collection with as an integer (inclusive)
+        :return: A numpy array with the first row being column names and the remainder being the quarter data along with
+        the operating income with the quarters being according to the companies financial calendar and may greatly
+        differ from the normal calendar
+        """
+        cik = self._ticker_cik_map[ticker]
+        return ut.get_data(cik, self._op_inc_jargon, 'Operating Income', start_year, start_quarter, end_year, end_quarter)
+
