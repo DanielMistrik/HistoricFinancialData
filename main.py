@@ -16,6 +16,7 @@ class FinData:
     _g_profit_jargon, _n_profit_jargon = ["GrossProfit"], ["NetIncomeLoss"]
     _op_inc_jargon = ["OperatingIncomeLoss"]
     _eps_basic_jargon, _eps_diluted_jargon = ["EarningsPerShareBasic"], ["EarningsPerShareDiluted"]
+    _t_assets_jargon, _t_liab_jargon = ["Assets"], ["Liabilities"]
     _cik_map_url = "https://www.sec.gov/files/company_tickers.json"
     _ticker_cik_map = {}
     _name_cik_map = {}
@@ -48,8 +49,7 @@ class FinData:
         :param end_year: The company's financial year you want to end data collection with as an integer (inclusive)
         :param end_quarter: The company's financial quarter you want to end data collection with as an integer (inclusive)
         :return: A numpy array with the first row being column names and the remainder being revenue data by quarter
-        with the quarters being according to the companies financial calendar and may greatly differ from the normal
-        calendar
+        according to the companies financial calendar which may greatly differ from the normal calendar
         """
         cik = self._ticker_cik_map[ticker]
         return ut.get_data(cik, self._rev_jargon, 'Revenue', start_year, start_quarter, end_year, end_quarter)
@@ -64,7 +64,7 @@ class FinData:
         :param end_year: The company's financial year you want to end data collection with as an integer (inclusive)
         :param end_quarter: The company's financial quarter you want to end data collection with as an integer (inclusive)
         :return: A numpy array with the first row being column names and the remainder being the start/end dates by
-        quarter with the quarters being according to the companies financial calendar and may greatly differ from the
+        quarter with the quarters being according to the companies financial calendar which may greatly differ from the
         normal calendar
         """
         cik = self._ticker_cik_map[ticker]
@@ -85,8 +85,8 @@ class FinData:
         :param end_year: The company's financial year you want to end data collection with as an integer (inclusive)
         :param end_quarter: The company's financial quarter you want to end data collection with as an integer (inclusive)
         :return: A numpy array with the first row being column names and the remainder being the quarter data along with
-        the cost of revenue with the quarters being according to the companies financial calendar and may greatly differ
-        from the normal calendar
+        the cost of revenue according to the companies financial calendar which may greatly differ from the normal
+        calendar
         """
         cik = self._ticker_cik_map[ticker]
         return ut.get_data(cik, self._cor_jargon, 'Cost of Revenue', start_year, start_quarter, end_year, end_quarter)
@@ -102,8 +102,7 @@ class FinData:
         :param end_year: The company's financial year you want to end data collection with as an integer (inclusive)
         :param end_quarter: The company's financial quarter you want to end data collection with as an integer (inclusive)
         :return: A numpy array with the first row being column names and the remainder being the quarter data along with
-        the gross profit with the quarters being according to the companies financial calendar and may greatly differ
-        from the normal calendar
+        the gross profit according to the companies financial calendar which may greatly differ from the normal calendar
         """
         cik = self._ticker_cik_map[ticker]
         return ut.get_data(cik, self._g_profit_jargon, 'Gross Profit', start_year, start_quarter, end_year, end_quarter)
@@ -119,8 +118,8 @@ class FinData:
         :param end_year: The company's financial year you want to end data collection with as an integer (inclusive)
         :param end_quarter: The company's financial quarter you want to end data collection with as an integer (inclusive)
         :return: A numpy array with the first row being column names and the remainder being the quarter data along with
-        the operating income with the quarters being according to the companies financial calendar and may greatly
-        differ from the normal calendar
+        the operating income according to the companies financial calendar which may greatly differ from the normal
+        calendar
         """
         cik = self._ticker_cik_map[ticker]
         return ut.get_data(cik, self._op_inc_jargon, 'Operating Income', start_year, start_quarter, end_year,
@@ -137,8 +136,7 @@ class FinData:
         :param end_year: The company's financial year you want to end data collection with as an integer (inclusive)
         :param end_quarter: The company's financial quarter you want to end data collection with as an integer (inclusive)
         :return: A numpy array with the first row being column names and the remainder being the quarter data along with
-        the net profit with the quarters being according to the companies financial calendar and may greatly differ
-        from the normal calendar
+        the net profit according to the companies financial calendar which may greatly differ from the normal calendar
         """
         cik = self._ticker_cik_map[ticker]
         return ut.get_data(cik, self._n_profit_jargon, 'Net Profit', start_year, start_quarter, end_year,
@@ -156,8 +154,7 @@ class FinData:
         :param end_quarter: The company's financial quarter you want to end data collection with as an integer (inclusive)
         :param is_diluted: Whether the EPS data returned is diluted or basic, default is basic.
         :return: A numpy array with the first row being column names and the remainder being the quarter data along with
-        the EPS data with the quarters being according to the companies financial calendar and may greatly differ from
-        the normal calendar
+        the EPS data according to the companies financial calendar which may greatly differ from the normal calendar
         """
         cik = self._ticker_cik_map[ticker]
         if is_diluted:
@@ -170,3 +167,37 @@ class FinData:
         data[1:, 1] = [np.round(x, 2) for x in data[1:, 1]]
         return data
 
+    def get_total_assets(self, ticker, start_year=0, start_quarter=0, end_year=3000, end_quarter=5):
+        """
+        get_total_assets - Returns the company's total assets, per company financial quarter, for the provided time.
+        Works off SEC 10-Q/A and 10-K fillings so for some companies, notably banks, the function won't be able to
+        return valid data and its behaviour with these companies is undocumented
+        :param ticker: The stock market ticker identifying your company of interest as a string.
+        :param start_year: The company's financial year you want to start data collection from as an integer
+        :param start_quarter: The company's financial quarter you want to start data collection from as an integer
+        :param end_year: The company's financial year you want to end data collection with as an integer (inclusive)
+        :param end_quarter: The company's financial quarter you want to end data collection with as an integer (inclusive)
+        :return: A numpy array with the first row being column names and the remainder being the quarter data along with
+        the total assets according to the companies financial calendar which may greatly differ from the normal calendar
+        """
+        cik = self._ticker_cik_map[ticker]
+        return ut.get_data(cik, self._t_assets_jargon, 'Total Assets', start_year, start_quarter, end_year,
+                           end_quarter, allow_negatives=False)
+
+    def get_total_liabilities(self, ticker, start_year=0, start_quarter=0, end_year=3000, end_quarter=5):
+        """
+        get_total_liabilities - Returns the company's total liabilities, per company financial quarter, for the provided
+        time. Works off SEC 10-Q/A and 10-K fillings so for some companies, notably banks, the function won't be able to
+        return valid data and its behaviour with these companies is undocumented
+        :param ticker: The stock market ticker identifying your company of interest as a string.
+        :param start_year: The company's financial year you want to start data collection from as an integer
+        :param start_quarter: The company's financial quarter you want to start data collection from as an integer
+        :param end_year: The company's financial year you want to end data collection with as an integer (inclusive)
+        :param end_quarter: The company's financial quarter you want to end data collection with as an integer (inclusive)
+        :return: A numpy array with the first row being column names and the remainder being the quarter data along with
+        the total liabilities according to the companies financial calendar which may greatly differ from the normal
+        calendar
+        """
+        cik = self._ticker_cik_map[ticker]
+        return ut.get_data(cik, self._t_liab_jargon, 'Total Liabilities', start_year, start_quarter, end_year,
+                           end_quarter, allow_negatives=False)

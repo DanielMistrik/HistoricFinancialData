@@ -103,3 +103,20 @@ class TestFinData(TestCase):
         self._check_quarter_data(eps_diluted_data, "2021Q2", 9, 4, "8 quarters in two years plus column names"
                                  , 2.08, 2, "Checking Diluted EPS as reported by Mastercard",
                                  datetime.datetime(2021, 4, 1), datetime.datetime(2021, 6, 30), divide_value=False)
+
+    def test_get_assets(self):
+        asset_data = self.fin_data_test_subject.get_total_assets('F', 2009, 2, 2022, 2)
+        # Relying on data from:
+        # https://www.annualreports.com/HostedData/AnnualReportArchive/f/NYSE_F_2016.pdf
+        self._check_quarter_data(asset_data, "2015Q4", 54, 4, "53 quarters from 2009Q2 to 2022Q2 plus column names"
+                                 , 224.925, 3, "Checking Diluted EPS as reported by Mastercard",
+                                 datetime.datetime(2015, 10, 1), datetime.datetime(2015, 12, 31))
+
+    def test_get_liabilities(self):
+        liab_data = self.fin_data_test_subject.get_total_liabilities('F', 2009, 3, 2022, 2)
+        # Relying on data from:
+        # https://www.annualreports.com/HostedData/AnnualReportArchive/f/NYSE_F_2016.pdf
+        self._check_quarter_data(liab_data, "2015Q4", 53, 4, "52 quarters from 2009Q3 to 2022Q2 plus column names"
+                                 , 196.174, 3, "Checking Diluted EPS as reported by Mastercard",
+                                 datetime.datetime(2015, 10, 1), datetime.datetime(2015, 12, 31))
+

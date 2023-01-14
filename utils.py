@@ -16,20 +16,21 @@ sec_url = "https://data.sec.gov/api/xbrl/companyconcept/CIK{0}/us-gaap/{1}.json"
 ONE_DAY_DATETIME = datetime.timedelta(days=1)
 
 "Fills missing quarterly financial data given (complete) yearly data and (in-complete) quarterly data"
-def fill_financial_data(yearly_revenue, quarterly_data):
+def fill_financial_data(yearly_data, quarterly_data, allow_negatives):
     missng_qrtr_sum = {}
     # Find missing quarters:
     for quarter in quarterly_data:
         quarter_year = quarter[0][:4]
-        if quarter_year in yearly_revenue:
+        if quarter_year in yearly_data:
             if quarter_year not in missng_qrtr_sum:
                 missng_qrtr_sum[quarter_year] = 10  # 4+3+2+1 = 10
             missng_qrtr_sum[quarter_year] -= int(quarter[0][5])  # Subtract q-val so we can isolate missing quarter
-            yearly_revenue[quarter_year] -= int(quarter[1]) if isinstance(quarter[1], int) else float(quarter[1])
-    for year in yearly_revenue.keys():
+            yearly_data[quarter_year] -= int(quarter[1]) if isinstance(quarter[1], int) else float(quarter[1])
+    for year in yearly_data.keys():
         # Add quarter if it is the only one missing and all other quarters are accounted for in a given year
-        if not isclose(yearly_revenue[year], 0, abs_tol=0.2) and year in missng_qrtr_sum and 0 < missng_qrtr_sum[year] < 5:
-            new_quarter = np.array([str(year) + "Q" + str(missng_qrtr_sum[year]), yearly_revenue[year], None, None])
+        if not isclose(yearly_data[year], 0, abs_tol=0.2) and year in missng_qrtr_sum \
+                and 0 < missng_qrtr_sum[year] < 5 and (allow_negatives or yearly_data[year] > 0):
+            new_quarter = np.array([str(year) + "Q" + str(missng_qrtr_sum[year]), yearly_data[year], None, None])
             quarterly_data = np.vstack([quarterly_data, new_quarter])
     # Re-sort the data so its sequential if non-empty and properly shaped
     if len(quarterly_data) > 0 and len(quarterly_data.shape) > 1:
@@ -96,30 +97,32 @@ def is_fy_date_frontrunning(start, fy, fp):
 
 "Filter for valid yearly and quarterly revenue data"
 def yr_is_valid(item, min_year, max_year):
-    return item["form"] == "10-K" and "fy" in item and "fp" in item and min_year <= int(item["fy"]) <= max_year and\
-        330 < (dt.fromisoformat(item["end"]) - dt.fromisoformat(item["start"])).days < 380
+    return item["form"] == "10-K" and "fy" in item and "fp" in item and min_year <= int(item["fy"]) <= max_year and \
+           ("start" not in item or 330 < (dt.fromisoformat(item["end"]) - dt.fromisoformat(item["start"])).days < 380)
 
 
 def qr_is_valid(item, min_year, max_year):
     return "fp" in item and item["form"] in "10-Q/A" and min_year <= int(item["fy"]) <= max_year and "fy" in item \
-           and 60 < (dt.fromisoformat(item["end"]) - dt.fromisoformat(item["start"])).days < 100 and \
-           not is_fy_date_frontrunning(dt.fromisoformat(item["start"]), item["fy"], item["fp"])
+           and ("start" not in item or \
+                (60 < (dt.fromisoformat(item["end"]) - dt.fromisoformat(item["start"])).days < 100 and \
+                not is_fy_date_frontrunning(dt.fromisoformat(item["start"]), item["fy"], item["fp"])))
 
 
 "Return quarters marked by frame rather than year and quarter"
 def get_frame_quarter_data(raw_output, min_year, max_year, found_qrtrs, value_list_name):
-        frame_quarter_data = np.array([[item["frame"][2:], item["val"], dt.fromisoformat(item["start"]),
-                            dt.fromisoformat(item["end"])] for item in raw_output["units"][value_list_name] if "frame"
-                            in item and "Q" in item["frame"] and item["frame"][2:] not in found_qrtrs and "fy" in item
-                            and min_year <= int(item["frame"][2:6]) <= max_year])
+        frame_quarter_data = np.array([[item["frame"][2:8], item["val"],(dt.fromisoformat(item["start"])
+                                if "start" in item else None), dt.fromisoformat(item["end"])]
+                                for item in raw_output["units"][value_list_name] if "frame" in item and
+                                "Q" in item["frame"] and item["frame"][2:] not in found_qrtrs and "fy" in item
+                                and min_year <= int(item["frame"][2:6]) <= max_year])
         return frame_quarter_data
 
 
 "Return quarters marked by year and quarter explicitly"
 def get_explicit_quarter_data(raw_output, min_year, max_year, value_list_name):
-    return np.array([[str(item["fy"]) + item["fp"], item["val"], dt.fromisoformat(item["start"]),
-                      dt.fromisoformat(item["end"])] for item in raw_output["units"][value_list_name] if
-                     qr_is_valid(item, min_year, max_year)])
+    return np.array([[str(item["fy"]) + item["fp"], item["val"], (dt.fromisoformat(item["start"]) if "start" in item
+                    else None), dt.fromisoformat(item["end"])] for item in raw_output["units"][value_list_name] if
+                    qr_is_valid(item, min_year, max_year)])
 
 
 "Function that appends 2d np arrays which can be None"
@@ -138,23 +141,27 @@ def get_missing_time_periods(data):
     for quarter_info in data:
         if last_date is not None and quarter_info[2] is not None and (quarter_info[2] - last_date).days > 1:
             new_data = np.array([last_date+ONE_DAY_DATETIME, quarter_info[2]-ONE_DAY_DATETIME])
-            average_quarter_length = (quarter_info[2] - last_date).days
             missing_time_periods = safe_np_append(missing_time_periods, new_data)
+        if last_date is not None and (quarter_info[3] - last_date).days < 95 and average_quarter_length is None:
+            average_quarter_length = (quarter_info[3] - last_date - ONE_DAY_DATETIME).days
         last_date = quarter_info[3]
     # Add a last date as the function calling this will always work on whole years and as such ignore the last Q4
     if last_date is not None:
-        end_of_latest_quarter = last_date + datetime.timedelta(days=(average_quarter_length - 1))
+        end_of_latest_quarter = last_date + datetime.timedelta(days=average_quarter_length)
         latest_quarter = np.array([last_date+ONE_DAY_DATETIME, end_of_latest_quarter])
         missing_time_periods = safe_np_append(missing_time_periods, latest_quarter)
     return missing_time_periods
 
 
 "Returns quarterly data that matches the time periods and most of the qr_is_valid() conditions except the form req"
-def get_quarterly_data_from_time_periods(raw_output, time_periods, value_list_name):
+def get_quarterly_data_from_time_periods(raw_output, time_periods, value_list_name, end_date_to_new_start_date_map):
     missing_data = None
     for item in raw_output["units"][value_list_name]:
-        start_date = dt.fromisoformat(item["start"])
         end_date = dt.fromisoformat(item["end"])
+        # Skip data we can't find a start date for
+        if "start" not in item and end_date not in end_date_to_new_start_date_map:
+            continue
+        start_date = dt.fromisoformat(item["start"]) if "start" in item else end_date_to_new_start_date_map[end_date]
         if np.array([start_date, end_date]) in time_periods and 'fy' in item \
                 and 60 < (end_date - start_date).days < 100 and 'fp' in item \
                 and not is_fy_date_frontrunning(start_date, item["fy"], "Q4"):
@@ -168,6 +175,27 @@ def get_quarterly_data_from_time_periods(raw_output, time_periods, value_list_na
     return unique(missing_data) if missing_data is not None else None, time_periods if len(time_periods) else None
 
 
+"Fill in start dates if they are not provided, assumes end date always provided"
+def fill_start_dates(data):
+    average_quarter_length, last_date = None, None
+    end_date_to_new_start_date_map = {}
+    # Iterate over quarters and finds the quarter length
+    for quarter_info in data:
+        if last_date is not None and quarter_info[2] is None and (quarter_info[3] - last_date).days < 95:
+            average_quarter_length = (quarter_info[3] - last_date - ONE_DAY_DATETIME).days
+            quarter_info[2] = last_date + ONE_DAY_DATETIME
+            end_date_to_new_start_date_map[quarter_info[3]] = quarter_info[2]
+        last_date = quarter_info[3]
+    # Add start dates that couldn't be added above because of missing Q4's or because it is the first quarter reported
+    for quarter_info in data:
+        if quarter_info[2] is None and average_quarter_length is not None:
+            is_leap_year = (quarter_info[3].year % 400 == 0) and (quarter_info[3].year % 100 == 0)
+            is_leap_year = is_leap_year or ((quarter_info[3].year % 4 ==0) and (quarter_info[3].year % 100 != 0))
+            quarter_info[2] = quarter_info[3] - datetime.timedelta(days=average_quarter_length - 2 + is_leap_year)
+            end_date_to_new_start_date_map[quarter_info[3]] = quarter_info[2]
+    return data, end_date_to_new_start_date_map
+
+
 "Retrieves the financial data values from the url response from the start of the min_year up to the max_year"
 def get_spec_data_given_url(url, min_year=0, max_year=3000, found_qrtrs=None, missing_time_periods = None):
     raw_output = get_url_data(url)
@@ -179,27 +207,29 @@ def get_spec_data_given_url(url, min_year=0, max_year=3000, found_qrtrs=None, mi
     if found_qrtrs is None:
         quarterly_data = get_explicit_quarter_data(raw_output, min_year, max_year, value_list_name)
         quarterly_data = unique(quarterly_data)
+        quarterly_data, end_date_to_new_start_date_map = fill_start_dates(quarterly_data)
         new_missing_time_periods = get_missing_time_periods(quarterly_data)
         missing_time_periods = safe_np_append(missing_time_periods, new_missing_time_periods)
         if missing_time_periods is not None:
             missing_data, missing_time_periods = get_quarterly_data_from_time_periods(raw_output, missing_time_periods,
-                                                                                      value_list_name)
+                                                                    value_list_name, end_date_to_new_start_date_map)
             if missing_data is not None:
                 quarterly_data = safe_np_append(quarterly_data, missing_data)
                 quarterly_data = quarterly_data[quarterly_data[:, 0].argsort()]
     else:
         quarterly_data = get_frame_quarter_data(raw_output, min_year, max_year, found_qrtrs, value_list_name)
+        quarterly_data, _ = fill_start_dates(quarterly_data)
         quarterly_data = unique(quarterly_data)
     return quarterly_data, yearly_revenue, missing_time_periods
 
 
 "Fill the quarterly data given its own information, as a list, and information from the yearly data, a dictionary"
-def fill_data(yearly_data, quarterly_data):
+def fill_data(yearly_data, quarterly_data, allow_negatives):
     # Filter data and make it unique as the above can return double counts
     _, unique_indices = np.unique(quarterly_data.astype(str)[:, 0], return_index=True, axis=0)
     value_data = np.take(quarterly_data, unique_indices, 0)
     # Fill in missing data
-    value_data = fill_financial_data(yearly_data, value_data)
+    value_data = fill_financial_data(yearly_data, value_data, allow_negatives)
     value_data = fill_dates(value_data)
     return value_data
 
@@ -235,11 +265,9 @@ def correct_output(value_data, min_year, min_quarter, max_year, max_quarter):
 
 
 "Gets data from the list of value tags for a particular company, given its cik"
-def get_data(cik, value_tags, data_name, min_year=0, min_quarter=0, max_year=3000, max_quarter=5):
+def get_data(cik, value_tags, data_name, min_year=0, min_quarter=0, max_year=3000, max_quarter=5, allow_negatives=True):
     values = np.array(['Time-Period', data_name, 'Start of Quarter', 'End of Quarter'])
     value_data, yearly_data = get_value_and_yearly_data(cik, value_tags, min_year, max_year)
-    # Fill data
-    value_data = fill_data(yearly_data, value_data)
     value_data = correct_output(value_data, min_year, min_quarter, max_year, max_quarter)
     found_qrtrs = dict(zip(value_data[:, 0].flatten(), [1]*len(value_data[:, 0].flatten())))
     # Find any remaining data, add it and sort the result if something is missing
@@ -248,6 +276,9 @@ def get_data(cik, value_tags, data_name, min_year=0, min_quarter=0, max_year=300
         if new_value_data is not None:
             value_data = np.vstack([value_data, new_value_data])
             value_data = value_data[value_data[:, 0].argsort()]
+    # Fill data - Last step (even though not as slow) because here we are approximating and calculating ourselves so we
+    # first want to fill any data that actually comes from the SEC
+    value_data = fill_data(yearly_data, value_data, allow_negatives)
     # Precisely filter value data according to given year and quarter constraints
     value_data = correct_output(value_data, min_year, min_quarter, max_year, max_quarter)
     values = np.vstack([values, value_data])
