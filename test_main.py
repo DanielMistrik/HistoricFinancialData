@@ -126,7 +126,7 @@ class TestFinData(TestCase):
         # Record what the function prints out by temporarily moving the standard output and putting in a buffer
         old_stdout = sys.stdout
         sys.stdout = buffer = io.StringIO()
-        function_output = self.fin_data_test_subject.get_revenue('TM', 2017, 1, 2017, 4, ignore_warnings=ignore_warning)
+        function_output = self.fin_data_test_subject.get_revenue('TM', 2017, 1, 2017, 4, mute_warnings=ignore_warning)
         sys.stdout = old_stdout
         print_output = buffer.getvalue()
         expected_print_output = "" if ignore_warning else "WARNING: The company you searched for does not file the " \
