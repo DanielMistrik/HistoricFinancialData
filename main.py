@@ -22,8 +22,8 @@ class FinData:
     _name_cik_map = {}
     _cik_ticker_map = {}
 
-    "Helper function that fills in the various cik maps the SEC uses to classify company financials"
     def _fill_cik_map(self):
+        """Helper function that fills in the various cik maps the SEC uses to classify company financials"""
         r = requests.get(self._cik_map_url)
         json_output = json.loads(r.content.decode('utf-8'))
         i = 0
@@ -34,6 +34,14 @@ class FinData:
             self._ticker_cik_map[ticker] = company_cir
             self._cik_ticker_map[company_cir] = ticker
             i += 1
+
+
+    def _get_data(self, ticker, jargon_terms, data_title, start_year, start_quarter, end_year, end_quarter,
+                  allow_negatives=True):
+        """Helper function to retrieve the actual data for the public facing functions"""
+        cik = self._ticker_cik_map[ticker]
+        return ut.get_data(cik, jargon_terms, data_title, start_year, start_quarter, end_year, end_quarter,
+                           allow_negatives)
 
     def __init__(self):
         # Fills in mapping from human-understandable tickers to SEC identification numbers
@@ -51,8 +59,7 @@ class FinData:
         :return: A numpy array with the first row being column names and the remainder being revenue data by quarter
         according to the companies financial calendar which may greatly differ from the normal calendar
         """
-        cik = self._ticker_cik_map[ticker]
-        return ut.get_data(cik, self._rev_jargon, 'Revenue', start_year, start_quarter, end_year, end_quarter)
+        return self._get_data(ticker, self._rev_jargon, 'Revenue', start_year, start_quarter, end_year, end_quarter)
 
     def get_dates(self, ticker, start_year=0, start_quarter=0, end_year=3000, end_quarter=5):
         """
@@ -67,9 +74,8 @@ class FinData:
         quarter with the quarters being according to the companies financial calendar which may greatly differ from the
         normal calendar
         """
-        cik = self._ticker_cik_map[ticker]
         # To maximize code re-use I am using the same set-up as with get_revenues and then deleting the revenues after
-        raw_data = ut.get_data(cik, self._rev_jargon, None, start_year, start_quarter, end_year, end_quarter)
+        raw_data = self._get_data(ticker, self._rev_jargon, None, start_year, start_quarter, end_year, end_quarter)
         filtered_data = np.delete(raw_data, 1, 1)
         return filtered_data
 
@@ -88,8 +94,8 @@ class FinData:
         the cost of revenue according to the companies financial calendar which may greatly differ from the normal
         calendar
         """
-        cik = self._ticker_cik_map[ticker]
-        return ut.get_data(cik, self._cor_jargon, 'Cost of Revenue', start_year, start_quarter, end_year, end_quarter)
+        return self._get_data(ticker, self._cor_jargon, 'Cost of Revenue', start_year, start_quarter, end_year,
+                              end_quarter)
 
     def get_gross_profit(self, ticker, start_year=0, start_quarter=0, end_year=3000, end_quarter=5):
         """
@@ -104,8 +110,8 @@ class FinData:
         :return: A numpy array with the first row being column names and the remainder being the quarter data along with
         the gross profit according to the companies financial calendar which may greatly differ from the normal calendar
         """
-        cik = self._ticker_cik_map[ticker]
-        return ut.get_data(cik, self._g_profit_jargon, 'Gross Profit', start_year, start_quarter, end_year, end_quarter)
+        return self._get_data(ticker, self._g_profit_jargon, 'Gross Profit', start_year, start_quarter, end_year,
+                              end_quarter)
 
     def get_operating_income(self, ticker, start_year=0, start_quarter=0, end_year=3000, end_quarter=5):
         """
@@ -121,9 +127,8 @@ class FinData:
         the operating income according to the companies financial calendar which may greatly differ from the normal
         calendar
         """
-        cik = self._ticker_cik_map[ticker]
-        return ut.get_data(cik, self._op_inc_jargon, 'Operating Income', start_year, start_quarter, end_year,
-                           end_quarter)
+        return self._get_data(ticker, self._op_inc_jargon, 'Operating Income', start_year, start_quarter, end_year,
+                              end_quarter)
 
     def get_net_profit(self, ticker, start_year=0, start_quarter=0, end_year=3000, end_quarter=5):
         """
@@ -138,9 +143,8 @@ class FinData:
         :return: A numpy array with the first row being column names and the remainder being the quarter data along with
         the net profit according to the companies financial calendar which may greatly differ from the normal calendar
         """
-        cik = self._ticker_cik_map[ticker]
-        return ut.get_data(cik, self._n_profit_jargon, 'Net Profit', start_year, start_quarter, end_year,
-                           end_quarter)
+        return self._get_data(ticker, self._n_profit_jargon, 'Net Profit', start_year, start_quarter, end_year,
+                              end_quarter)
 
     def get_eps(self, ticker, start_year=0, start_quarter=0, end_year=3000, end_quarter=5, is_diluted = False):
         """
@@ -156,13 +160,9 @@ class FinData:
         :return: A numpy array with the first row being column names and the remainder being the quarter data along with
         the EPS data according to the companies financial calendar which may greatly differ from the normal calendar
         """
-        cik = self._ticker_cik_map[ticker]
-        if is_diluted:
-            data = ut.get_data(cik, self._eps_diluted_jargon, 'EPS (Diluted)', start_year, start_quarter, end_year,
-                               end_quarter)
-        else:
-            data = ut.get_data(cik, self._eps_basic_jargon, 'EPS (Basic)', start_year, start_quarter, end_year,
-                               end_quarter)
+        jargon_list = self._eps_diluted_jargon if is_diluted else self._eps_basic_jargon
+        e_type = "Diluted" if is_diluted else "Basic"
+        data = self._get_data(ticker, jargon_list, 'EPS ('+e_type+')', start_year, start_quarter, end_year, end_quarter)
         # Round the data to 2 dp as the filling and floating point approx error can leave a weird number
         data[1:, 1] = [np.round(x, 2) for x in data[1:, 1]]
         return data
@@ -180,9 +180,8 @@ class FinData:
         :return: A numpy array with the first row being column names and the remainder being the quarter data along with
         the total assets according to the companies financial calendar which may greatly differ from the normal calendar
         """
-        cik = self._ticker_cik_map[ticker]
-        return ut.get_data(cik, self._t_assets_jargon, 'Total Assets', start_year, start_quarter, end_year,
-                           end_quarter, allow_negatives=False)
+        return self._get_data(ticker, self._t_assets_jargon, 'Total Assets', start_year, start_quarter, end_year,
+                              end_quarter, allow_negatives=False)
 
     def get_total_liabilities(self, ticker, start_year=0, start_quarter=0, end_year=3000, end_quarter=5):
         """
@@ -198,6 +197,5 @@ class FinData:
         the total liabilities according to the companies financial calendar which may greatly differ from the normal
         calendar
         """
-        cik = self._ticker_cik_map[ticker]
-        return ut.get_data(cik, self._t_liab_jargon, 'Total Liabilities', start_year, start_quarter, end_year,
-                           end_quarter, allow_negatives=False)
+        return self._get_data(ticker, self._t_liab_jargon, 'Total Liabilities', start_year, start_quarter, end_year,
+                              end_quarter, allow_negatives=False)
