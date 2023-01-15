@@ -268,6 +268,8 @@ def correct_output(value_data, min_year, min_quarter, max_year, max_quarter):
 def get_data(cik, value_tags, data_name, min_year=0, min_quarter=0, max_year=3000, max_quarter=5, allow_negatives=True):
     values = np.array(['Time-Period', data_name, 'Start of Quarter', 'End of Quarter'])
     value_data, yearly_data = get_value_and_yearly_data(cik, value_tags, min_year, max_year)
+    if value_data is None: # No data was found (Some companies, primarily non-US, like Toyota)
+        raise NotFoundError()
     value_data = correct_output(value_data, min_year, min_quarter, max_year, max_quarter)
     found_qrtrs = dict(zip(value_data[:, 0].flatten(), [1]*len(value_data[:, 0].flatten())))
     # Find any remaining data, add it and sort the result if something is missing
