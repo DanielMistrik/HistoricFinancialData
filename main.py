@@ -22,8 +22,8 @@ class FinData:
     _name_cik_map = {}
     _cik_ticker_map = {}
 
-    "Helper function that fills in the various cik maps the SEC uses to classify company financials"
     def _fill_cik_map(self):
+        """Helper function that fills in the various cik maps the SEC uses to classify company financials"""
         r = requests.get(self._cik_map_url)
         json_output = json.loads(r.content.decode('utf-8'))
         i = 0
@@ -35,9 +35,10 @@ class FinData:
             self._cik_ticker_map[company_cir] = ticker
             i += 1
 
-    "Helper function to retrieve the actual data for the public facing functions"
+
     def _get_data(self, ticker, jargon_terms, data_title, start_year, start_quarter, end_year, end_quarter,
                   allow_negatives=True):
+        """Helper function to retrieve the actual data for the public facing functions"""
         cik = self._ticker_cik_map[ticker]
         return ut.get_data(cik, jargon_terms, data_title, start_year, start_quarter, end_year, end_quarter,
                            allow_negatives)
