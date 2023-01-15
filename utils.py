@@ -1,6 +1,7 @@
 import datetime
 from datetime import datetime as dt
 import requests
+from ratelimiter import RateLimiter
 import json
 import numpy as np
 from math import isclose
@@ -8,7 +9,7 @@ from exceptions import *
 
 """
 utils.py - File for utility functions that largely originated as static methods in FinData. Not meant for use by the
-           user. I guarantee no functionality or reliability for direct user.
+           user. I guarantee no functionality or reliability for the direct user.
 """
 # Default API URL for SEC API
 sec_url = "https://data.sec.gov/api/xbrl/companyconcept/CIK{0}/us-gaap/{1}.json"
@@ -39,6 +40,7 @@ def fill_financial_data(yearly_data, quarterly_data, allow_negatives):
 
 
 "Retrieves SEC data given the complete URL in a json format"
+@RateLimiter(max_calls=10, period=1)
 def get_url_data(url):
     r = requests.get(url, headers={'User-Agent': 'Automated-Financial-Data-Library'})
     # Throw if the request was incorrect because of the revenue word
@@ -50,7 +52,7 @@ def get_url_data(url):
         case 404:
             raise NotFoundError("Request/URL was not found")
         case _:
-            raise HttpError("Unknown error occured with request")
+            raise HttpError("Unknown error occurred with request")
     json_output = json.loads(r.content.decode('utf-8'))
     return json_output
 
@@ -89,7 +91,7 @@ def is_fy_date_frontrunning(start, fy, fp):
         return True
     if start.year == fy:
         latest_start = {"Q1":1, "Q2":4, "Q3":7, "Q4":10}
-        if latest_start[fp] < start.month or (latest_start[fp] == start.month and start.day > 1):
+        if latest_start[fp] < start.month or (latest_start[fp] == start.month and start.day > 7):
             return True
         return False
     return False
@@ -197,8 +199,8 @@ def fill_start_dates(data):
 
 
 "Retrieves the financial data values from the url response from the start of the min_year up to the max_year"
-def get_spec_data_given_url(url, min_year=0, max_year=3000, found_qrtrs=None, missing_time_periods = None):
-    raw_output = get_url_data(url)
+def get_spec_data_given_url(url, min_year=0, max_year=3000, found_qrtrs=None, missing_time_periods = None, raw_data=None):
+    raw_output = get_url_data(url) if raw_data is None else raw_data
     value_list_name = list(raw_output["units"].keys())[0] # Always only one key so order/indicies don't matter
     # Create tables of quarterly and yearly revenues by parsing the raw output
     yearly_revenue = {str(item["fy"]): item["val"] for item in raw_output["units"][value_list_name] if
@@ -220,7 +222,7 @@ def get_spec_data_given_url(url, min_year=0, max_year=3000, found_qrtrs=None, mi
         quarterly_data = get_frame_quarter_data(raw_output, min_year, max_year, found_qrtrs, value_list_name)
         quarterly_data, _ = fill_start_dates(quarterly_data)
         quarterly_data = unique(quarterly_data)
-    return quarterly_data, yearly_revenue, missing_time_periods
+    return quarterly_data, yearly_revenue, missing_time_periods, raw_output
 
 
 "Fill the quarterly data given its own information, as a list, and information from the yearly data, a dictionary"
@@ -235,20 +237,31 @@ def fill_data(yearly_data, quarterly_data, allow_negatives):
 
 
 "Given value tags, it returns the quarterly and yearly data"
-def get_value_and_yearly_data(cik, value_tags, min_year, max_year, found_qrtrs = None):
-    value_data, missing_time_periods, yearly_data = None, None, {}
-    # Some value tag words aren't found in certain company's income statements, so we cycle through possibilities
-    for i in range(len(value_tags)):
-        try:
-            url = sec_url.format(cik, value_tags[i])
-            new_qtr_data, new_yr_data, missing_time_periods = \
-                get_spec_data_given_url(url, min_year-1, max_year+1, found_qrtrs, missing_time_periods)
-            if new_qtr_data is not None and len(new_qtr_data) > 0 and len(new_qtr_data.shape) > 1:
-                value_data = new_qtr_data if value_data is None else np.concatenate((value_data, new_qtr_data))
-            yearly_data = yearly_data | new_yr_data
-        except HttpError:
-            pass
-    return value_data, yearly_data
+def get_value_and_yearly_data(cik, value_tags, min_year, max_year, found_qrtrs = None, raw_data = None):
+    value_data, missing_time_periods, yearly_data, cur_raw_data = None, None, {}, {}
+    # If we don't have the raw data from the SEC then we need to do the whole process of retrieving it
+    if raw_data is None:
+        # Some value tag words aren't found in certain company's income statements, so we cycle through possibilities
+        for i in range(len(value_tags)):
+            try:
+                url = sec_url.format(cik, value_tags[i])
+                new_qtr_data, new_yr_data, missing_time_periods, new_raw_data = \
+                    get_spec_data_given_url(url, min_year-1, max_year+1, found_qrtrs, missing_time_periods)
+                cur_raw_data = cur_raw_data | new_raw_data
+                if new_qtr_data is not None and len(new_qtr_data) > 0 and len(new_qtr_data.shape) > 1:
+                    value_data = new_qtr_data if value_data is None else np.concatenate((value_data, new_qtr_data))
+                yearly_data = yearly_data | new_yr_data
+            except HttpError:
+                pass
+    # As we have the data we just parse it. As we only use this to find isolated data, yearly info isn't needed
+    else:
+        # No need for try-except block as we aren't hitting an API like above
+        new_qtr_data, _, _, _ = \
+            get_spec_data_given_url(None, min_year - 1, max_year + 1, found_qrtrs, None, raw_data)
+        if new_qtr_data is not None and len(new_qtr_data) > 0 and len(new_qtr_data.shape) > 1:
+            value_data = new_qtr_data
+
+    return value_data, yearly_data, cur_raw_data
 
 
 "Returns the number of quarters necessary for the given start and end dates in FY terms"
@@ -267,14 +280,14 @@ def correct_output(value_data, min_year, min_quarter, max_year, max_quarter):
 "Gets data from the list of value tags for a particular company, given its cik"
 def get_data(cik, value_tags, data_name, min_year=0, min_quarter=0, max_year=3000, max_quarter=5, allow_negatives=True):
     values = np.array(['Time-Period', data_name, 'Start of Quarter', 'End of Quarter'])
-    value_data, yearly_data = get_value_and_yearly_data(cik, value_tags, min_year, max_year)
+    value_data, yearly_data, raw_data = get_value_and_yearly_data(cik, value_tags, min_year, max_year)
     if value_data is None: # No data was found (Some companies, primarily non-US, like Toyota)
         raise NotFoundError()
-    value_data = correct_output(value_data, min_year, min_quarter, max_year, max_quarter)
-    found_qrtrs = dict(zip(value_data[:, 0].flatten(), [1]*len(value_data[:, 0].flatten())))
+    relevant_value_data = correct_output(value_data, min_year, min_quarter, max_year, max_quarter)
+    found_qrtrs = dict(zip(relevant_value_data[:, 0].flatten(), [1]*len(relevant_value_data[:, 0].flatten())))
     # Find any remaining data, add it and sort the result if something is missing
     if len(found_qrtrs) < get_number_of_quarters_necessary(min_year, min_quarter, max_year, max_quarter):
-        new_value_data, _ = get_value_and_yearly_data(cik, value_tags, min_year, max_year, found_qrtrs)
+        new_value_data, _, _ = get_value_and_yearly_data(cik, value_tags, min_year, max_year, found_qrtrs, raw_data)
         if new_value_data is not None:
             value_data = np.vstack([value_data, new_value_data])
             value_data = value_data[value_data[:, 0].argsort()]
