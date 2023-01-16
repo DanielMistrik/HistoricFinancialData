@@ -11,8 +11,7 @@
 It's meant to be an open-source tool where people/projects can access detailed financial
 information without having to pay for an external service.
 
-As SEC data is considered **public information** it is free to use and dissemintate, which
-this project does.
+As SEC data is considered **public information** it is free to use and dissemintate.
 For a more detailed description of the SEC's data-use policy please refer to their
 **[website](https://www.sec.gov/privacy#dissemination)**
 
