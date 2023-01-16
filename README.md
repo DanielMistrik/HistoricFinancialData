@@ -8,7 +8,7 @@
 
  **HistoricalFinancialData is not affiliated, endorsed, or vetted by the U.S Securities
  and Exchange Comission (SEC).** 
-It's meant to be an open-source tool where projects can access detailed financial
+It's meant to be an open-source tool where people/projects can access detailed financial
 information without having to pay for an external service.
 
 As SEC data is considered **public information** it is free to use and dissemintate, which
