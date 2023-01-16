@@ -39,8 +39,13 @@ class FinData:
     def _get_data(self, ticker, jargon_terms, data_title, start_year, start_quarter, end_year, end_quarter,
                   allow_negatives=True, mute_warnings=False):
         """Helper function to retrieve the actual data for the public facing functions"""
-        cik = self._ticker_cik_map[ticker]
         data = None
+        try:
+            cik = self._ticker_cik_map[ticker]
+        except KeyError:
+            if not mute_warnings:
+                print("WARNING: The ticker you have provided is not valid or does not exist")
+            return None
         try:
             data = ut.get_data(cik, jargon_terms, data_title, start_year, start_quarter, end_year, end_quarter,
                                allow_negatives)

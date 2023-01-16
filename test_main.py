@@ -122,23 +122,28 @@ class TestFinData(TestCase):
                                  , 196.174, 3, "Checking Diluted EPS as reported by Mastercard",
                                  datetime.datetime(2015, 10, 1), datetime.datetime(2015, 12, 31))
 
-    def _test_no_data_warning(self, ignore_warning):
+    def _test_no_data_warning(self, ticker, ignore_warning, expected_warning_message):
         # Record what the function prints out by temporarily moving the standard output and putting in a buffer
         old_stdout = sys.stdout
         sys.stdout = buffer = io.StringIO()
-        function_output = self.fin_data_test_subject.get_revenue('TM', 2017, 1, 2017, 4, mute_warnings=ignore_warning)
+        function_output = self.fin_data_test_subject.get_revenue(ticker, 2017, 1, 2017, 4, mute_warnings=ignore_warning)
         sys.stdout = old_stdout
         print_output = buffer.getvalue()
-        expected_print_output = "" if ignore_warning else "WARNING: The company you searched for does not file the " \
-                                "necessary documents, 10-Q/A/K, to the SEC so this library cannot return any financial " \
-                                "data for it\n"
-        self.assertEqual(print_output, expected_print_output, "Check if function gave user proper defined warning")
+        self.assertEqual(print_output, expected_warning_message, "Check if function gave user proper defined warning")
         self.assertIsNone(function_output, "Check function output is None given the warning")
 
     def test_no_data_handling(self):
         # Check that correct handling when there is no data available
-        self._test_no_data_warning(False)
-        self._test_no_data_warning(True)
+        self._test_no_data_warning('TM', False, "WARNING: The company you searched for does not file the necessary"
+                                                " documents, 10-Q/A/K, to the SEC so this library cannot return any"
+                                                " financial data for it\n")
+        self._test_no_data_warning('TM', True, "")
+
+    def test_wrong_ticker(self):
+        # Check the proper warning and behavior is exhibited when inputting a bad ticker
+        self._test_no_data_warning('qwerty', False, "WARNING: The ticker you have provided is not valid or does not "
+                                                    "exist\n")
+        self._test_no_data_warning('qwerty', True, "")
 
 
 
