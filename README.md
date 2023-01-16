@@ -48,7 +48,7 @@ file location where you wish to store the library and then, after making sure gi
 is installed and initialized, run the following command:
 
 `git clone https://github.com/DanielMistrik/HistoricFinancialData.git`
-## Quick Start (How-to-Guide)
+## How-to-Use
 ```python
 import HistoricalFinanceData as hfd
 
