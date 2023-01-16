@@ -1,7 +1,7 @@
 import datetime
 from datetime import datetime as dt
+from ratelimit import limits
 import requests
-from ratelimiter import RateLimiter
 import json
 import numpy as np
 from math import isclose
@@ -40,7 +40,7 @@ def fill_financial_data(yearly_data, quarterly_data, allow_negatives):
 
 
 "Retrieves SEC data given the complete URL in a json format"
-@RateLimiter(max_calls=10, period=1)
+@limits(calls=10, period=1)
 def get_url_data(url):
     r = requests.get(url, headers={'User-Agent': 'Automated-Financial-Data-Library'})
     # Throw if the request was incorrect because of the revenue word
