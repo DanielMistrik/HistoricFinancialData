@@ -24,7 +24,7 @@ information provided by the SEC. The library can return important information fr
 companies financial statement such as revenue, net profit or eps (and much more).
 The library returns data by quarter, the smallest granularity possible for financial statements. 
 The goal of this project was to provide a free resource for detailed and exact financial information 
-on publicly traded companies that span decades rather than a few quarters, which yfinance provides.
+on publicly traded companies that span decades rather than a few quarters, which other libraries provide.
 
 ## Rationale
 This project was started because while working on a trading side-project I noticed
