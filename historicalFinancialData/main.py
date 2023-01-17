@@ -1,8 +1,8 @@
 import requests
 import json
-import utils as ut
+import historicalFinancialData.utils as ut
 import numpy as np
-from exceptions import *
+from historicalFinancialData.exceptions import *
 
 """
 main.py - The public facing script which includes the main public class (FinData) and all the public, and useful, methods

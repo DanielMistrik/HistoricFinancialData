@@ -2,7 +2,7 @@ import sys
 import io
 import datetime
 from unittest import TestCase
-from main import FinData
+from historicalFinancialData.main import FinData
 
 """
 main.py - Testing script containing unit tests for all the public facing methods in main.py
