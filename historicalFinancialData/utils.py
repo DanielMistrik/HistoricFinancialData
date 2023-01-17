@@ -5,7 +5,7 @@ import requests
 import json
 import numpy as np
 from math import isclose
-from exceptions import *
+from historicalFinancialData.exceptions import *
 
 """
 utils.py - File for utility functions that largely originated as static methods in FinData. Not meant for use by the
