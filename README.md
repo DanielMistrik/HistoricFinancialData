@@ -50,7 +50,7 @@ is installed and initialized, run the following command:
 `git clone https://github.com/DanielMistrik/HistoricFinancialData.git`
 ## How-to-Use
 ```python
-import HistoricalFinanceData as hfd
+import historicalFinanceData as hfd
 
 # Always define a data object from which you can retrieve financial data
 data_object = hfd.FinData()
