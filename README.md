@@ -41,7 +41,7 @@ to make a library that made the process simpler.
 To install the library you can either pip install it and then import it in 
 your project like so:
 
-`pip install HistoricalFinanceData`
+`pip install historicalFinancialData`
 
 Or you can clone this repository. You do so by going through the terminal to the
 file location where you wish to store the library and then, after making sure git
@@ -50,18 +50,18 @@ is installed and initialized, run the following command:
 `git clone https://github.com/DanielMistrik/HistoricFinancialData.git`
 ## How-to-Use
 ```python
-import historicalFinanceData as hfd
+import historicalFinancialData as hfd
 
 # Always define a data object from which you can retrieve financial data
 data_object = hfd.FinData()
 
 # You can now call methods in the data object to retrieve historical financial information
-data_object.get_revenue('AAPL', 2022, 1, 2022, 4, mute_warnings=False)
+revenue_data = data_object.get_revenue('AAPL', 2022, 1, 2022, 4, mute_warnings=False)
 
 # Every method has roughly the same arguments. For their detailed description please refer to the method's docstring
 
 # Only the first argument, the ticker, is required. With no time bound the function returns as much data as it can
-data_object.get_revenue('AAPL')
+revenue_data = data_object.get_revenue('AAPL')
 
 # The other functions have the same arguments, and so I will ignore that part in their presentation
 # Get other financial information

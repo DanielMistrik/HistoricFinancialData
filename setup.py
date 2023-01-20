@@ -8,7 +8,7 @@ except(IOError, ImportError):
 
 setup(
     name='historicalFinancialData',
-    version='0.1.0',
+    version='0.1.2',
     description="A package for public companies' historical financial data",
     url='https://github.com/DanielMistrik/HistoricFinancialData',
     author='Daniel Mistrik',
