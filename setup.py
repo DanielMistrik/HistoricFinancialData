@@ -8,7 +8,7 @@ except(IOError, ImportError):
 
 setup(
     name='historicalFinancialData',
-    version='0.1.2',
+    version='0.1.3',
     description="A package for public companies' historical financial data",
     url='https://github.com/DanielMistrik/HistoricFinancialData',
     author='Daniel Mistrik',
@@ -21,7 +21,7 @@ setup(
     classifiers=[
         'Development Status :: 3 - Alpha',
         'Intended Audience :: Developers',
-        'Programming Language :: Python :: 3.8',
+        'Programming Language :: Python :: 3.10',
         'License :: OSI Approved :: Apache Software License',
         "Operating System :: OS Independent",
     ],
